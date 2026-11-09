@@ -5,7 +5,7 @@ function htmlAdminLogin($message) {
 	?>
 	<html>
 		<head>
-			<title>iRev.net Admin Login</title>
+			<title>Outfits.lol Admin Login</title>
 			<link rel="stylesheet" type="text/css" href="/templates/css/responsiveboilerplate.css">
 			<link rel="stylesheet" type="text/css" href="/templates/css/irev.css">
 		</head>
@@ -51,7 +51,7 @@ function AdminHead($curfunction,$adminfunctions) {
 			<head>
 				<meta http-equiv="X-UA-Compatible" content="IE=edge">
 				<meta charset="utf-8">
-				<title>iRev.net Admin - <?= $tempadminfunctionsflipped[$curfunction]; ?></title>
+				<title>Outfits.lol Admin - <?= $tempadminfunctionsflipped[$curfunction]; ?></title>
 				<link rel="stylesheet" type="text/css" href="/templates/css/admin.css" />
 	  		<link rel="stylesheet" type="text/css" href="/templates/css/jquery.bsmselect.css" />
 	  		<link href="/templates/css/jquery-ui.css" rel="stylesheet" type="text/css" />
@@ -62,7 +62,7 @@ function AdminHead($curfunction,$adminfunctions) {
 	  		<script type="text/javascript" src="/templates/js/jquery.bsmselect.compatibility.js"></script>
 			</head>
 			<body>
-				<div class='adminTitle'>iRev Website Administration - <?= $tempadminfunctionsflipped[$curfunction]; ?></div>
+				<div class='adminTitle'>Outfits.lol Website Administration - <?= $tempadminfunctionsflipped[$curfunction]; ?></div>
 	<?
 }
 

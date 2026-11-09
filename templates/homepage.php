@@ -2,8 +2,7 @@
 function htmlHomePageTop () {
 	?>
 		<div style="padding-top: 18px;">
-		<!-- <h3>I'm a hacker who enjoys video production, photography, stage tech, network engineering, and sound mixing</h3> -->
-		<h3>VIDEO PRODUCTION | PROGRAMMING | PHOTOGRAPHY | STAGE TECH | NETWORK ENGINEERING | SOUND MIXING</h3>
+		<!-- <h3>Skirt Go Spinny</h3> -->
 		</div>
 	<?
 }

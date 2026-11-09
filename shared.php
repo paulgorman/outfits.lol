@@ -1,11 +1,11 @@
 <?
 /****************************************
-**  Presence's iRev.net
-**  Portfolio Gallery and Hosting Services
+**  Presence's Outfits.lol
+**  WTF to wear, skirts go spinny
 **
-**  Code: Presence
+**  Code: Presence and Claude
 **
-**  Last Edit: 20261030
+**  Last Edit: 20261108
 ****************************************/
 
 function Init() {
@@ -35,11 +35,11 @@ function Init() {
 	if (!(isset($_SESSION['obfuscate']))) {
 		$_SESSION['obfuscate'] = 0; // set this key to something so no complaints
 	}
-	$dirlocation = "/home/presence/irev.net";	// no trailing slash. // default, overridden in db.php
+	$dirlocation = "/home/presence/outfits.lol";	// no trailing slash. // default, overridden in db.php
 	require_once("db.php"); // $host, $user, $pass, $db name, $dirlocation no trailing slash
 	//mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 	mysqli_report(MYSQLI_REPORT_OFF);
-	$conn = mysqli_connect($host, $user, $pass, $db, 3306) or die("iRev Offline: " . mysqli_connect_error());
+	$conn = mysqli_connect($host, $user, $pass, $db, 3306) or die("Outfits.lol Offline: " . mysqli_connect_error());
 	//printf("Success... %s\n", mysqli_get_host_info($conn));
 	$pagination = "20";	// number of entries per "page"
 	$videowidth = 600;
@@ -51,8 +51,8 @@ function Pages() {
 		"home" => "Home",
 		"about-top" => "About (Top)",
 		"about-bottom" => "About (Bottom)",
-		"irev-top" => "iRev.net (Top)",
-		"irev-bottom" => "iRev.net (Bottom)",
+		"irev-top" => "Outfits.lol (Top)",
+		"irev-bottom" => "Outfits.lol (Bottom)",
 		"now" => "Now"
 	);
 	return ($pages);
@@ -220,7 +220,7 @@ function SamplePage() {
 function getSampleMetaTags($sampleinfo) {
 	$meta = array();
 	// meta keywords are name, categories, tags, locations
-	$meta['keywords'] = "iRev.net, iRev, Inner Revolution Networks, ";
+	$meta['keywords'] = "Outfits.lol, what to wear, grwm";
 	foreach (array_keys($sampleinfo) as $key) {
 		$meta['keywords'] .= $sampleinfo[$key]['name'] . ", ";
 		if (is_countable($sampleinfo[$key]['categories'])) {
@@ -253,7 +253,7 @@ function getSampleMetaTags($sampleinfo) {
 	}
 	$meta['description'] = substr($meta['description'], 0, -3);
 	// title is: Presence name - slug (cat,egor,ies)
-	$meta['title'] = "iRev.net ";
+	$meta['title'] = "Outfits.lol ";
 	foreach (array_keys($sampleinfo) as $key) {
 		$meta['title'] .= $sampleinfo[$key]['name'];
 		$meta['title'] .= " - ";
@@ -276,8 +276,8 @@ function getSampleMetaTags($sampleinfo) {
 	$oid = $sampleinfo[key($sampleinfo)]['oid'];
 	if (preg_match("/sample[s]?/",$_REQUEST['page'])) {
 		// this is an sample page, not an event media page
-		$meta['breadcrumb'][0]['name'] = "Portfolio Samples";
-		$meta['breadcrumb'][0]['url'] = CurServerURL() . "portfolio";
+		$meta['breadcrumb'][0]['name'] = "Wardrobe Samples";
+		$meta['breadcrumb'][0]['url'] = CurServerURL() . "wardrobe";
 	}
 	if (count($sampleinfo) === 1) {
 		if ($sampleinfo[$oid]['category']) {
@@ -287,7 +287,7 @@ function getSampleMetaTags($sampleinfo) {
 		$crumb = 2;
 		$sampleSub = ($sampleinfo[$oid]['category']) ? getSampleSubCategory($oid, $sampleinfo[$oid]['cid']) : NULL;
 		if ($sampleSub) {
-			// Portfolio > Category > Sub-category > Sample
+			// Wardrobe > Category > Sub-category > Sample
 			$meta['breadcrumb'][2]['name'] = $sampleSub['subcategory'];
 			$meta['breadcrumb'][2]['url'] = curServerURL() . "category/" . $sampleinfo[$oid]['caturl'] . "/" . $sampleSub['url'];
 			$crumb = 3;
@@ -661,7 +661,7 @@ function CategoriesList() {
 				$categoryList[] = $row;
 			}
 			// meta keywords
-			$meta['keywords'] = "iRev.net, Presence, Inner Revolution Networks, ";
+			$meta['keywords'] = "Outfits.lol, What to wear, ";
 			foreach ($categoryList as $category) {
 				$meta['keywords'] .= $category['category'] . ", ";
 			}
@@ -671,13 +671,13 @@ function CategoriesList() {
 				$meta['description'] .= $category['category'] . ", ";
 			}
 			$meta['description'] = substr($meta['description'], 0, -2) . ".";
-			$meta['title'] = "Project Samples Categories Listing - Paul Gorman's Online Portfolio";
+			$meta['title'] = "Project Samples Categories Listing - Paul Gorman's Online Wardrobe";
 			$meta['url'] = CurPageURL();
 			$meta['image'] = CurServerUrl() . "i/category/" . $highlightedList[0]['carousel_id'];
 			$meta['css'][] = "skin_modern_silver.css";
 			//$meta['js'][] = "FWDRoyal3DCarousel.js";
 			$meta['js'][] = "FWDRoyal3DCarousel_uncompressed.js";
-			$meta['breadcrumb'][0]['name'] = "Portfolio Samples";
+			$meta['breadcrumb'][0]['name'] = "Wardrobe Samples";
 			$meta['breadcrumb'][0]['url'] = curPageURL();
 			// display all the categories
 			htmlHeader($meta);
@@ -823,7 +823,7 @@ function CategoriesList() {
 			//$closestCategoryFromRequest = ucWords(ClosestWord($url,$categorynames));
 
 			// meta keywords
-			$meta['keywords'] = "iRev.net, Presence, Inner Revolution Networks, ";
+			$meta['keywords'] = "Outfits.lol, Closet, What to Wear, ";
 			$meta['keywords'] .= "$closestCategoryFromRequest, ";
 			$meta['keywords'] .= $categoryInfo['description'] .", ";
 			foreach ($samples as $sample) {
@@ -851,8 +851,8 @@ function CategoriesList() {
 			//$meta['js'][] = "jquery.js";
 			//$meta['js'][] = "jquery-ui.js";
 			//$meta['js'][] = "presgrid.js";
-			$meta['breadcrumb'][0]['name'] = "Portfolio Samples";
-			$meta['breadcrumb'][0]['url'] = curServerURL() . "portfolio/";
+			$meta['breadcrumb'][0]['name'] = "Wardrobe Samples";
+			$meta['breadcrumb'][0]['url'] = curServerURL() . "wardrobe/";
 			if ($subInfo) {
 				$meta['breadcrumb'][1]['name'] = $parentName;
 				$meta['breadcrumb'][1]['url'] = curServerURL() . "category/" . $parentUrl;
@@ -927,9 +927,9 @@ function TagIndex() {
 	foreach ($tags as $tag) {
 		$names[] = $tag['name'];
 	}
-	$meta['keywords'] = "iRev.net, Presence, Inner Revolution Networks, " . implode(", ", $names) . ".";
-	$meta['description'] = "Portfolio samples by tag: " . implode(", ", $names) . ".";
-	$meta['title'] = "Tags - Paul Gorman's Online Portfolio";
+	$meta['keywords'] = "Outfits.lol, Closet, Outfits, What to wear, " . implode(", ", $names) . ".";
+	$meta['description'] = "Wardrobe samples by tag: " . implode(", ", $names) . ".";
+	$meta['title'] = "Tags - Paul Gorman's Online Wardrobe";
 	$meta['url'] = CurPageURL();
 	$meta['image'] = "";
 	$meta['css'][] = "Rb-ui.css"; // the colored .btn buttons, same as a sample page's tags
@@ -1034,13 +1034,13 @@ function TagPage() {
 	}
 	$count = count($samples) . (count($samples) == 1 ? " sample" : " samples");
 	// meta
-	$meta['keywords'] = "iRev.net, Presence, Inner Revolution Networks, " . $tag['name'] . ", " . implode(", ", $names) . ".";
-	$meta['description'] = "Portfolio samples tagged " . $tag['name'];
+	$meta['keywords'] = "Outfits.lol, Closet, Wardrobe, What to Wear, GRWM, " . $tag['name'] . ", " . implode(", ", $names) . ".";
+	$meta['description'] = "Wardrobe samples tagged " . $tag['name'];
 	if (count($names) > 0) {
 		$meta['description'] .= ", including " . implode(", ", $names);
 	}
 	$meta['description'] .= ".";
-	$meta['title'] = $tag['name'] . " - Paul Gorman's Online Portfolio";
+	$meta['title'] = $tag['name'] . " - Paul Gorman's Online Wardrobe";
 	$meta['url'] = CurPageURL();
 	$meta['image'] = "";
 	if (count($samples) > 0) {
@@ -1078,9 +1078,9 @@ function HomePage() {
 	require_once("templates/header.php");
 	require_once("templates/homepage.php");
 	require_once("templates/FWDconstructors.php"); // shit to make grid and carousel go
-	$meta['keywords'] = "iRev.net, Inner Revolution Networks, Presence, Gallery, Photos, Engineering, Programming, Design, Hosting, Shells, FreeBSD, Staging, Video, ";
-	$meta['description'] = "Presence's Gallery of Projects, Photos, and Videos / iRev.net Web, Shell, and Email Hosting";
-	$meta['title'] = "Paul Gorman's Gallery of Projects, Photos, and Videos / iRev.net Web, Shell, and Email Hosting";
+	$meta['keywords'] = "Outfits.lol, What to wear, grwm, wardrobe, outfits, closet, ";
+	$meta['description'] = "Presence's What to Wear Wardrobe Closet of Outfits";
+	$meta['title'] = "Outfits.lol - WTF to Wear Today Wardrobe Closet of Outfits";
 	$meta['url'] = CurPageURL();
 	$meta['image'] = CurServerUrl() . "templates/irev/irev-logo.png";
 	$meta['css'][] = "skin_modern_silver.css";
@@ -1112,8 +1112,8 @@ function AboutPage() {
 	require_once("templates/header.php");
 	$contentTop = GetPageContent("about-top");
 	$contentBottom = GetPageContent("about-bottom");
-	$meta['keywords'] = "Paul Gorman, Portfolio, iRev.net, Presence, Inner Revolution Networks, ";
-	$meta['description'] = "Online Portfolio of Paul Gorman, iRev.net Internet Web Hosting";
+	$meta['keywords'] = "Outfits.lol, What to wear, grwm, wardrobe, outfits, closet, ";
+	$meta['description'] = "Presence's What to Wear Wardrobe Closet of Outfits";
 	$meta['title'] = "About & Contact - Paul Gorman";
 	$meta['url'] = CurPageURL();
 	$meta['image'] = CurServerUrl() . "iRev.png";
@@ -1133,9 +1133,9 @@ function iRevPage() {
 	require_once("templates/header.php");
 	$contentTop = GetPageContent("irev-top");
 	$contentBottom = GetPageContent("irev-bottom");
-	$meta['keywords'] = "Paul Gorman, Portfolio, iRev.net, Presence, Inner Revolution Networks, ";
-	$meta['description'] = "Online Portfolio of Paul Gorman, iRev.net Internet Web Hosting";
-	$meta['title'] = "About iRev.net";
+	$meta['keywords'] = "Outfits.lol, What to wear, grwm, wardrobe, outfits, closet, ";
+	$meta['description'] = "Presence's What to Wear Wardrobe Closet of Outfits";
+	$meta['title'] = "About Outfits.lol";
 	$meta['url'] = CurPageURL();
 	$meta['image'] = CurServerUrl() . "iRev.png";
 	htmlHeader($meta);
@@ -1328,7 +1328,7 @@ function DisplayVideoPlayer($sampleinfo) {
 			],
 			'author': 'Paul Gorman',
 			'description': '<?= ($sampleinfo['use_display_name'])? htmlspecialchars($sampleinfo['display_name'], ENT_QUOTES) : htmlspecialchars($sampleinfo['name'], ENT_QUOTES); ?>',
-			'file': 'https://irev.net/m/<?= $sampleinfo['media']['filename']; ?>',
+			'file': 'https://outfits.lol/m/<?= $sampleinfo['media']['filename']; ?>',
 			'image': '/i/sample/<?= $sampleinfo['media']['previewimage']; ?>',
 			'duration': '<?= $sampleinfo['media']['vidlength']; ?>',
 			'controlbar': 'over',

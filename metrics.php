@@ -20,9 +20,9 @@ define('METRICS_DAYS', 30);
 // Your own visits (testing at home) are left out. Exact addresses, then address prefixes.
 define('METRICS_MY_IPS', '63.224.44.134');
 define('METRICS_MY_IP_PREFIXES', '192.168.1.');
-// Only these hostnames count as "the website". The wildcard DNS sends every other *.irev.net here
+// Only these hostnames count as "the website". The wildcard DNS sends every other *.outfits.lol here
 // (Baidu invents subdomains), so those are tallied separately instead of as visitors.
-define('METRICS_HOSTS', 'irev.net,www.irev.net,gallery.irev.net,paul.irev.net,media.irev.net');
+define('METRICS_HOSTS', 'outfits.lol,www.outfits.lol');
 // A "visit" longer than this many pages is a robot that keeps cookies, not a person.
 define('METRICS_MAX_HUMAN_PAGES', 40);
 // User agents containing any of these words are robots (case-insensitive, MariaDB REGEXP).
@@ -104,7 +104,7 @@ function MetricsHumanAgents($sinceSQL, $timeBudget = 2.0) {
 	// CGI every request is a fresh PHP and browscap.ini is slow to load.
 	// Returns array('humans' => [user agent strings], 'crawlers' => how many get_browser() caught).
 	$cache = array();
-	$cachefile = sys_get_temp_dir() . '/irevnet-ua-cache.json';
+	$cachefile = sys_get_temp_dir() . '/outfits-ua-cache.json';
 	$haveBrowscap = function_exists('get_browser') && ini_get('browscap');
 	if ($haveBrowscap) {
 		$raw = @file_get_contents($cachefile);
@@ -114,7 +114,7 @@ function MetricsHumanAgents($sinceSQL, $timeBudget = 2.0) {
 		}
 	}
 	$rows = MetricsRows(sprintf(
-		"SELECT user_agent, COUNT(*) AS n FROM sitehits WHERE hit_datetime >= '%s' AND hit_url LIKE '%%irev.net%%'
+		"SELECT user_agent, COUNT(*) AS n FROM sitehits WHERE hit_datetime >= '%s' AND hit_url LIKE '%%outfits.lol%%'
 			AND COALESCE(user_agent,'') <> '' GROUP BY user_agent ORDER BY n DESC LIMIT 3000", MetricsEsc($sinceSQL)));
 	if (!is_array($rows)) { return array('humans' => array(), 'crawlers' => 0); }
 	$start = microtime(TRUE);
@@ -161,7 +161,7 @@ function MetricsVisits($sinceSQL, $humanSQL) {
 			SELECT sessionid, hit_datetime, hit_url, referrer, user_agent,
 				LAG(hit_datetime) OVER (PARTITION BY sessionid ORDER BY hit_datetime) AS prev
 			FROM sitehits
-			WHERE hit_datetime >= '%s' AND hit_url LIKE '%%irev.net%%' AND %s AND %s AND %s
+			WHERE hit_datetime >= '%s' AND hit_url LIKE '%%outfits.lol%%' AND %s AND %s AND %s
 		), v AS (
 			SELECT *, SUM(prev IS NULL OR TIMESTAMPDIFF(MINUTE, prev, hit_datetime) > %d)
 				OVER (PARTITION BY sessionid ORDER BY hit_datetime) AS visit_no
@@ -171,7 +171,7 @@ function MetricsVisits($sinceSQL, $humanSQL) {
 			MIN(user_agent) AS ua,
 			GROUP_CONCAT(SUBSTRING(hit_url, LOCATE('/', hit_url)) ORDER BY hit_datetime SEPARATOR '\\n') AS path,
 			SUBSTRING_INDEX(GROUP_CONCAT(
-				CASE WHEN COALESCE(referrer,'') = '' OR referrer REGEXP '^https?://([a-z0-9-]+[.])?irev[.]net' THEN NULL ELSE referrer END
+				CASE WHEN COALESCE(referrer,'') = '' OR referrer REGEXP '^https?://([a-z0-9-]+[.])?outfits[.]lol' THEN NULL ELSE referrer END
 				ORDER BY hit_datetime SEPARATOR '\\n'), '\\n', 1) AS came_from
 		FROM v GROUP BY sessionid, visit_no
 		ORDER BY started DESC",
@@ -267,7 +267,7 @@ function AdminDisplaySiteStats() {
 		"SELECT COALESCE(user_agent,'') AS ua, COUNT(*) AS hits,
 			SUM(hit_datetime >= '%s') AS t, SUM(hit_datetime >= '%s') AS w
 			FROM sitehits
-			WHERE hit_datetime >= '%s' AND hit_url LIKE '%%irev.net%%' AND %s AND %s AND NOT (%s)
+			WHERE hit_datetime >= '%s' AND hit_url LIKE '%%outfits.lol%%' AND %s AND %s AND NOT (%s)
 			GROUP BY ua ORDER BY hits DESC",
 		DatePHPtoSQL($edges["Today"]), DatePHPtoSQL($edges["7 days"]), MetricsEsc($since), MetricsNotMineSQL(), MetricsRealHostSQL(), $humanSQL));
 	if (!is_array($botrows)) { $botrows = array(); }
@@ -290,7 +290,7 @@ function AdminDisplaySiteStats() {
 			SUM(hit_datetime >= '%s') AS t, SUM(hit_datetime >= '%s') AS w,
 			SUM(SUBSTRING(hit_url, LOCATE('/', hit_url), 2) = '//') AS odd
 			FROM sitehits
-			WHERE hit_datetime >= '%s' AND hit_url LIKE '%%irev.net%%' AND %s AND NOT (%s)
+			WHERE hit_datetime >= '%s' AND hit_url LIKE '%%outfits.lol%%' AND %s AND NOT (%s)
 			GROUP BY host ORDER BY hits DESC LIMIT 500",
 		DatePHPtoSQL($edges["Today"]), DatePHPtoSQL($edges["7 days"]), MetricsEsc($since), MetricsNotMineSQL(), MetricsRealHostSQL()));
 	if (!is_array($wildrows)) { $wildrows = array(); }

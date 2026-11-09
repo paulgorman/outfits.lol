@@ -25,14 +25,14 @@ function htmlHeader($dataArray) {
 		<meta name="robots" content="all" /> 
 		<meta name="description" content="<?= $dataArray['description']; ?>" />
 		<meta name="keywords" content="<?= $dataArray['keywords']; ?>" />
-		<meta name="copyright" content="&copy; <?= date("Y"); ?> iRev.net" />
+		<meta name="copyright" content="&copy; <?= date("Y"); ?> Outfits.lol" />
 		<meta name="viewport" content="width=device-width; initial-scale=1.0" />
 		<meta property="og:title" content="<?= $dataArray['title']; ?>" />
 		<meta property="og:type" content="article" />
 		<meta property="og:image" content="<?= $dataArray['image']; ?>" />
 		<meta property="og:url" content="<?= $dataArray['url']; ?>" />
 		<meta property="og:description" content="<?= $dataArray['description']; ?>" />
-		<meta property="og:site_name" content="iRev.net" />
+		<meta property="og:site_name" content="Outfits.lol" />
 		<meta name="twitter:card" content="summary" />
 		<meta name="twitter:title" content="<?= $dataArray['title']; ?>" />
 		<meta name="twitter:description" content="<?= $dataArray['description']; ?>" />
@@ -79,7 +79,7 @@ function htmlHeader($dataArray) {
 function htmlMasthead($meta) {
 	?>
 		<header class="col12">
-			<img class="logo" src="/templates/irev/irev-logo.png" title="Portfolio of Paul Gorman" alt="Paul Gorman / iRev.net" />
+			<img class="logo" src="/templates/irev/outfitslol.header.png" title="outfits.lol" alt="Outfits.lol" />
 			<!-- <div class="swoosh"></div> -->
 		</header>
 	<?
@@ -90,9 +90,8 @@ function htmlNavigation($meta) {
 			<nav class="nav col12">
 				<ul>
 					<li><a href="/" title="Home Page">Home</a></li>
-					<li><a href="/portfolio/" title="Samples of Projects Portfolio">Portfolio</a></li>
-					<li><a href="/about/" title="About Paul Gorman, Contact Info">About</a></li>
-					<li><a href="/irev/" title="iRev.net Hosting Services">iRev.net</a></li>
+					<li><a href="/wardrobe/" title="Wardrobe Closet">Wardrobe</a></li>
+					<li><a href="/about/" title="Skirt go spinny!">About</a></li>
 				</ul>
 			</nav>
 			<nav class="menu col12">
@@ -100,9 +99,8 @@ function htmlNavigation($meta) {
 					<li><img src="/templates/irev/more.png" />&nbsp;Menu
 						<ul class="subMenu">
 							<li><a href="/" title="Home Page">Home</a></li>
-							<li><a href="/portfolio/" title="Samples of Projects Portfolio">Portfolio</a></li>
-							<li><a href="/about/" title="About Paul Gorman, Contact Info">About</a></li>
-							<li><a href="/irev/" title="iRev.net Hosting Services">iRev.net</a></li>
+							<li><a href="/wardrobe/" title="Wardrobe Closet">Wardrobe</a></li>
+							<li><a href="/about/" title="Skirt go spinny!">About</a></li>
 						</ul>
 					</li>
 				</ul>
@@ -117,7 +115,7 @@ function htmlDropDownNavigationFull($navdata) {
 		<nav class="nav col12">
 			<ul>
 				<li><a href="/" title="Home Page">Home</a></li>
-				<li><a href="/portfolio/" title="Samples of Projects Portfolio">Portfolio</a>
+				<li><a href="/wardrobe/" title="Wardrobe Closet">Wardrobe</a>
 					<ul class="sub1">
 						<?
 							foreach (array_keys($navdata) as $categorykey) {
@@ -146,8 +144,7 @@ function htmlDropDownNavigationFull($navdata) {
 						?>
 					</ul>
 				</li>
-				<li><a href="/about/" title="About Paul Gorman, Contact Info">About</a></li>
-				<li><a href="/irev/" title="iRev.net Hosting Services">iRev.net</a></li>
+				<li><a href="/about/" title="Skirt go spinny!">About</a></li>
 			</ul>
 		</nav>
 		<!-- end Standard Navigation -->
@@ -157,7 +154,7 @@ function htmlDropDownNavigationFull($navdata) {
 				<li><img src="/templates/irev/more.png">&nbsp;Menu
 					<ul class="sub1">
 						<li><a href="/" title="Home Page">Home</a></li>
-						<li><a href="/Portfolio/" title="Samples of Projects Portfolio">Portfolio</a><span class="arrow">&#x25b6;</span>
+						<li><a href="/Wardrobe/" title="Wardrobe Closet">Wardrobe</a><span class="arrow">&#x25b6;</span>
 							<!-- Sub-level 2 -->
 							<ul class="sub2">
 								<?
@@ -186,8 +183,7 @@ function htmlDropDownNavigationFull($navdata) {
 								?>
 							</ul>
 						</li>
-						<li><a href="/about/" title="About Paul Gorman, Contact Info">About</a></li>
-						<li><a href="/irev/" title="iRev.net Hosting Services">iRev.net</a></li>
+						<li><a href="/about/" title="Skirt go spinny!">About</a></li>
 					</ul>
 				</li>
 			</ul>
@@ -203,7 +199,7 @@ function htmlDropDownNavigationSingle($navdata) {
 		<nav class="nav col12">
 			<ul>
 				<li><a href="/" title="Home Page">Home</a></li>
-				<li><a href="/portfolio/" title="Samples of Projects Portfolio">Portfolio</a>
+				<li><a href="/wardrobe/" title="Wardrobe Closet">Wardrobe</a>
 					<ul class="sub1">
 						<?
 							foreach (array_keys($navdata) as $categorykey) {
@@ -222,8 +218,7 @@ function htmlDropDownNavigationSingle($navdata) {
 						?>
 					</ul>
 				</li>
-				<li><a href="/about/" title="About Paul Gorman, Contact Info">About</a></li>
-				<li><a href="/irev/" title="iRev.net Hosting Services">iRev.net</a></li>
+				<li><a href="/about/" title="Skirt go spinny!">About</a></li>
 			</ul>
 		</nav>
 		<!-- end Standard Navigation -->
@@ -233,7 +228,7 @@ function htmlDropDownNavigationSingle($navdata) {
 				<li><img src="/templates/irev/more.png">&nbsp;Menu
 					<ul class="sub1">
 						<li><a href="/" title="Home Page">Home</a></li>
-						<li><a href="/portfolio/" title="Samples of Projects Portfolio">Portfolio</a><span class="arrow">&#x25b6;</span>
+						<li><a href="/wardrobe/" title="Wardrobe Closet">Wardrobe</a><span class="arrow">&#x25b6;</span>
 							<!-- Sub-level 2 -->
 							<ul class="sub2">
 								<?
@@ -253,8 +248,7 @@ function htmlDropDownNavigationSingle($navdata) {
 								?>
 							</ul>
 						</li>
-						<li><a href="/about/" title="About Paul Gorman, Contact Info">About</a></li>
-						<li><a href="/irev/" title="iRev.net Hosting Services">iRev.net</a></li>
+						<li><a href="/about/" title="Skirt go spinny!">About</a></li>
 					</ul>
 				</li>
 			</ul>
@@ -301,7 +295,7 @@ function htmlBodyStart() {
 
 function htmlBreadcrumb($meta) {
 	echo "\t<div class=\"breadcrumb\">\n";
-	echo "\t\t\t" . '<div class="breadcrumbitem"><a href="' . curServerURL() . '" title="Paul Gorman\'s Gallery of Projects, Photos, and Videos / iRev.net Web, Shell, and Email Hosting">Home</a></div>';
+	echo "\t\t\t" . '<div class="breadcrumbitem"><a href="' . curServerURL() . '" title="Paul Gorman\'s Gallery of Projects, Photos, and Videos / Outfits.lol Web, Shell, and Email Hosting">Home</a></div>';
 	foreach ($meta['breadcrumb'] as $bc) { 
 		echo "\n\t\t\t". '<div class="breadcrumbitem"><a href="' . $bc['url'] . '" title="' . $bc['name'] . '">' . $bc['name'] . '</a></div>';
 	}
@@ -314,9 +308,7 @@ function htmlFooter($meta) {
 			</div><!-- /purple body -->
 			<footer class="col12 footergo">
 				<p>
-					Designed and <a href="https://github.com/paulgorman/irevnet">Coded</a> by <a href="mailto:paul@irev.net">Paul Gorman</a> &copy;<? echo date("Y"); ?><br>
-					<a href="http://www.mxguarddog.com/">spam filter in the cloud</a><br>
-					<? /* <a href="http://www.diamonds2cash.com/sell-diamonds">sell diamonds online</a> */ ?>
+					Designed and <a href="https://github.com/paulgorman/outfits.lol">Coded</a> by <a href="mailto:paul@irev.net">Paul Gorman</a> &copy;<? echo date("Y"); ?><br>
 					<a rel="me" href="https://srs.lol/">Fediverse</a>
 
 				</p>

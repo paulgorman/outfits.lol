@@ -12,3 +12,5 @@ Thumbs.db
 templates/redactor-old
 *.sql
 *.tgz
+vendor/
+.transformers-cache/

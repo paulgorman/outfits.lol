@@ -1,21 +1,18 @@
-Presence's iRev.net Portfolio Gallery
+Presence's Outfits.lol -  What to Wear Wardrobe Closet of Outfits
 =======
-
-This is the new iRev.net website featuring Presence's gallery of stuff
 
 Install
 -------
-* git clone https://github.com/paulgorman/irevnet
-* mkdir -p irev.net/i/artist
-* mkdir irev.net/i/category
-* mkdir irev.net/i/pages
-* mkdir irev.net/m
-* chown -R www:www irev.net/m irev.net/i
-* mysqladmin create irev
-* GRANT ALL PRIVILEGES ON irev.* TO username@'localhost' IDENTIFIED BY 'password';
+* git clone https://github.com/paulgorman/outfits.lol
+* mkdir -p outfits.lol/i/artist
+* mkdir outfits.lol/i/category
+* mkdir outfits.lol/i/pages
+* mkdir outfits.lol/m
+* mysqladmin create outfits
+* GRANT ALL PRIVILEGES ON outfits.* TO username@'localhost' IDENTIFIED BY 'password';
 * FLUSH PRIVILEGES
-* mysql irevnet < irev.net/schema.sql
-* edit irev.net/db.php: $user and $pass
+* mysql outfits < outfits.lol/schema.sql
+* edit outfits.lol/db.php: $user and $pass
 * edit system httpd.conf and add
 ```
 	<LocationMatch "/(i|m)/.*\.(php|cgi)$">
@@ -24,7 +21,7 @@ Install
 	</LocationMatch>
 ```
 
-* check irev.net/php.ini
+* check outfits.lol/php.ini
 
 Notes
 -----

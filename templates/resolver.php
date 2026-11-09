@@ -1,7 +1,7 @@
 <?
-$dirlocation = "/home/presence/irev.net";	// no trailing slash. // default, overridden in db.php
+$dirlocation = "/home/presence/outfits.lol";	// no trailing slash. // default, overridden in db.php
 $host  = "localhost";
-$db    = "irevnet";
+$db    = "outfits";
 require_once($dirlocation."/db.php");
 $conn = mysqli_connect($host, $user, $pass, $db) or die(mysqli_error());
 $run_resolver = 1;

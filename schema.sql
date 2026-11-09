@@ -1,13 +1,13 @@
--- MySQL Schema for iRev Web App Database
+-- MySQL Schema for Outfits.lol Web App Database
 -- Presence 2017
---  mysql> GRANT ALL PRIVILEGES ON irevnet.* TO username@'localhost' IDENTIFIED BY 'password';
+--  mysql> GRANT ALL PRIVILEGES ON outfits.* TO username@'localhost' IDENTIFIED BY 'password';
 
 -- DANGER!!! XXX --------------
 -- DROP ALL TABLES FOR A FRESH START HERE 
 -- DROP TABLE IF EXISTS samples, samplecategories, samplesubcategories, samplelocations, locations, categories, media, sitehits, sampletags, tags, admins, pages;
 -- DANGER!!! XXX --------------
 
-CREATE TABLE `irevnet`.`samples` (
+CREATE TABLE `samples` (
 	`oid` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	`name` VARCHAR(50) NOT NULL,
 	`display_name` VARCHAR(50) NULL,
@@ -27,21 +27,21 @@ CREATE TABLE `irevnet`.`samples` (
 	INDEX(`slug`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`samplecategories` (
+CREATE TABLE `samplecategories` (
 	`oid` INT NOT NULL,
 	`cid` INT NOT NULL,
 	INDEX(`oid`),
 	INDEX(`cid`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`samplelocations` (
+CREATE TABLE `samplelocations` (
 	`oid` INT NOT NULL, 
 	`lid` INT NOT NULL,
 	INDEX(`oid`),
 	INDEX(`lid`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`locations` (
+CREATE TABLE `locations` (
 	`lid` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	`city` VARCHAR(40) NOT NULL UNIQUE,
 	`state` CHAR(2) NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE `irevnet`.`locations` (
 	INDEX(`state`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`categories` (
+CREATE TABLE `categories` (
 	`cid` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	`category` VARCHAR(40) NOT NULL UNIQUE,
 	`url` VARCHAR(50) NOT NULL UNIQUE,
@@ -65,7 +65,7 @@ CREATE TABLE `irevnet`.`categories` (
 	INDEX(`url`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`media` (
+CREATE TABLE `media` (
 	`mid` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	`oid` INT NOT NULL,
 	`name` VARCHAR(80),
@@ -82,7 +82,7 @@ CREATE TABLE `irevnet`.`media` (
 	INDEX(`oid`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`sitehits` (
+CREATE TABLE `sitehits` (
 	`hit_datetime` DATETIME NOT NULL ,
 	`hit_ip` VARCHAR(16) NOT NULL ,
 	`hit_addr` VARCHAR(255) NULL, 
@@ -94,25 +94,25 @@ CREATE TABLE `irevnet`.`sitehits` (
 	INDEX(`hit_datetime`,`hit_ip`,`hit_url`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`sampletags` (
+CREATE TABLE `sampletags` (
 	`oid` INT NOT NULL,
 	`tid` INT NOT NULL,
 	INDEX(`oid`),
 	INDEX(`tid`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`tags` (
+CREATE TABLE `tags` (
 	`tid` INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 	`name` varchar(40) NOT NULL UNIQUE,
 	INDEX(`name`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`admins` (
+CREATE TABLE `admins` (
 	`username` VARCHAR(16) NOT NULL PRIMARY KEY,
 	`password` VARCHAR(256) NOT NULL
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`subcategories` (
+CREATE TABLE `subcategories` (
 	`subid` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	`subcategory` VARCHAR(40) NOT NULL UNIQUE,
 	`url` VARCHAR(50) NOT NULL UNIQUE,
@@ -124,14 +124,14 @@ CREATE TABLE `irevnet`.`subcategories` (
 	INDEX(`url`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`samplesubcategories` (
+CREATE TABLE `samplesubcategories` (
 	`oid` INT NOT NULL,
 	`subid` INT NOT NULL,
 	INDEX(`oid`),
 	INDEX(`subid`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `irevnet`.`pages` (
+CREATE TABLE `pages` (
 	`pagename` VARCHAR(24) NOT NULL PRIMARY KEY,
 	`undo` TEXT NULL,
 	`html` TEXT NULL,
@@ -141,7 +141,7 @@ CREATE TABLE `irevnet`.`pages` (
 INSERT INTO `pages` (`pagename`,`html`,`htmltime`) VALUES ('home','Home','2014-01-01 00:00:00');
 INSERT INTO `pages` (`pagename`,`html`,`htmltime`) VALUES ('about-top','About (Top)','2014-01-01 00:00:00');
 INSERT INTO `pages` (`pagename`,`html`,`htmltime`) VALUES ('about-bottom','About (Bottom)','2014-01-01 00:00:00');
-INSERT INTO `pages` (`pagename`,`html`,`htmltime`) VALUES ('irev-top','iRev.net (Top)','2014-01-01 00:00:00');
-INSERT INTO `pages` (`pagename`,`html`,`htmltime`) VALUES ('irev-bottom','iRev.net (Bottom)','2014-01-01 00:00:00');
+INSERT INTO `pages` (`pagename`,`html`,`htmltime`) VALUES ('irev-top','Outfits.lol (Top)','2014-01-01 00:00:00');
+INSERT INTO `pages` (`pagename`,`html`,`htmltime`) VALUES ('irev-bottom','Outfits.lol (Bottom)','2014-01-01 00:00:00');
 INSERT INTO `pages` (`pagename`,`html`,`htmltime`) VALUES ('now','News','2014-01-01 00:00:00');
 
