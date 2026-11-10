@@ -18,91 +18,6 @@ td {
 	font-size:12px;
 }
 
-.adminTitle {
-	font-weight: bold;
-	font-size: 42px;
-	color: #444;
-	margin-left: 10px;
-	padding: 0px 0px 6px 0px;
-	line-height: 40px;
-	letter-spacing: -2px;
-}
-
-.adminNavHolder {
-	text-align: center;
-	font-size: 15px;
-	color: #00529B;
-	border: 1px solid;
-	margin: auto;
-	width: 960px;
-	padding: 15px, 10px, 15px, 10px;
-	background-color: #BDE5F8;
-	overflow: auto;
-}
-
-.adminNavItem {
-	text-align: center;
-	height: 1.5em;              
-	float: left;
-	width: 100px;
-	margin: auto;
-	padding: 4px;
-}
-
-.adminNavSubItem {
-	text-align: center;
-	height: 1.5em;              
-	float: left;
-	margin: auto;
-	padding: 4px;
-	padding-left: 1em;
-	padding-right: 1em;
-}
-
-.adminNavSubPagesItem {
-	text-align: center;
-	height: 1.5em;              
-	float: left;
-	margin: auto;
-	padding: 4px;
-	padding-left: 1em;
-	padding-right: 1em;
-	font-size: 12px;
-}
-
-.adminNavItemSelected {
-	text-align: center;
-	background-color: #AACEDF;
-	height: 1.5em;              
-	border-bottom: 0px;
-	float: left;
-	width: 100px;
-	margin: auto;
-	padding: 4px;
-}
-
-.adminNavSubHolder {
-	text-align: center;
-	font-size: 15px;
-	color: #252d31;
-	background-color: #AACEDF;
-	border: 1px solid;
-	border-top: 0px;
-	border-color: #00529B;
-	margin: auto;
-	width: 960px;
-	padding: 15px, 10px, 15px, 10px;
-	overflow: auto;
-}
-
-.adminNavItem:hover {
-	background-color: #BFEFFF;
-}
-
-.adminNavSubItem:hover, .adminNavSubPagesItem:hover {
-	background-color: #BFEFFF;
-}
-
 .AdminInfo, .AdminSuccess, .AdminWarning, .AdminError, .AdminValidation {
 	margin-left: auto;
 	margin-right: auto;
@@ -990,10 +905,13 @@ label {
  *  ======================================================================
  *
  *  The admin, but for thumbs: usable on an iPhone while standing in front
- *  of the laundry basket. Everything above this banner is the old
- *  table-era admin CSS. As each admin page gets its tables killed, its new
- *  rules go down here, and its old rules up there get deleted. Someday
- *  this banner sits at the top of the file and that's the whole file.
+ *  of the laundry basket: normal-sized text and fields on a phone AND a
+ *  desktop. Everything above this banner is the old 2016 "get it done for
+ *  the MacBook bonus" admin CSS. As each admin page gets rebuilt, its new
+ *  rules go down here and its old rules up there get deleted. Layout-only
+ *  tables become CSS; real tabular data (metrics!) stays a table and rocks
+ *  it. Someday this banner sits at the top of the file and that's the whole
+ *  file, and the last #e6e6e6 silver dies with the old rules.
  *
  *  Colors are borrowed from irev.css so it still looks like Cowkitty's work:
  *    #201f2f  the purple-black of the .blue boxes
@@ -1088,4 +1006,146 @@ label {
 .AdminLoginButton:hover,
 .AdminLoginButton:focus {
 	background-color: #2c2a3f;
+}
+
+
+/* ---- The admin header: title bar, main nav, sub-navs -------------------
+ *
+ * Every logged-in admin page starts with these, from AdminHead(), AdminNav(),
+ * AdminsamplesButtonBar() and the Pages sub-nav in templates/admin.php.
+ *
+ * The old version: a 42px title with -2px letter-spacing, and nav bars
+ * hardcoded to width: 960px with 100px-wide floated boxes. On a phone that
+ * meant sideways scrolling to find "Metrics". Now the nav buttons wrap onto
+ * as many rows as they need, and each is at least 44px tall, which is Apple's
+ * "a thumb can actually hit this" minimum.
+ */
+
+.adminTitle {
+	background-color: #0e0d13;
+	background-image: url("/templates/irev/pat-bg1.jpg"); /* the same pattern as .dark in irev.css */
+	color: #fff;
+	padding: 12px 16px;
+	margin: 0 0 8px 0;
+	line-height: 1.2;
+}
+
+/* "Outfits.lol Admin" on top, the page name ("Tags", "Metrics") below it */
+.adminTitleSite {
+	display: block;
+	font-size: 14px;
+	color: #bbb;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+
+.adminTitlePage {
+	display: block;
+	font-size: 24px;
+	font-weight: bold;
+}
+
+/*
+ * Both nav bars are a row of buttons that wraps. No fixed width: on a phone
+ * it's the screen minus 8px each side, on a desktop it stops at 960px.
+ */
+.adminNavHolder,
+.adminNavSubHolder {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	max-width: 960px;
+	margin: 0 auto 8px auto;
+	padding: 0 8px;
+	box-sizing: border-box;
+}
+
+/* every nav button, main or sub, gets the same thumb-sized shape */
+.adminNavItem,
+.adminNavItemSelected,
+.adminNavSubItem,
+.adminNavSubPagesItem {
+	flex: 1 1 auto;          /* buttons stretch to fill each row, so no ragged gaps */
+	min-height: 44px;
+	display: flex;
+	border-radius: 4px;
+	border: 1px solid #2c2a3f;
+	background-color: #201f2f;
+	box-sizing: border-box;
+}
+
+/*
+ * The link fills its whole button, so tapping the edge of the button
+ * works, not just tapping the word. The old version only had the word.
+ */
+.adminNavItem a,
+.adminNavItemSelected a,
+.adminNavSubItem a,
+.adminNavSubPagesItem a {
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 12px;
+	color: #fff;
+	font-size: 15px;
+	text-decoration: none;
+	text-align: center;
+}
+
+.adminNavItem:hover,
+.adminNavSubItem:hover,
+.adminNavSubPagesItem:hover {
+	background-color: #2c2a3f;
+}
+
+/* the page you're on: lighter purple and a white border, so you can tell */
+.adminNavItemSelected {
+	background-color: #2c2a3f;
+	border-color: #fff;
+}
+
+/* sub-navs sit under the main nav, so a hair quieter */
+.adminNavSubItem,
+.adminNavSubPagesItem {
+	background-color: #2c2a3f;
+	border-color: #201f2f;
+}
+
+.adminNavSubItem a,
+.adminNavSubPagesItem a {
+	font-size: 14px;
+}
+
+/*
+ * The "Search..." box lives inside the samples sub-nav. Give it the whole
+ * row on a phone, and 16px+ text so iPhone Safari doesn't zoom in on tap.
+ */
+.adminNavSubItem:has(form) {
+	flex: 1 1 100%;          /* the button holding the search box takes its own whole row */
+}
+
+.adminNavSubItem form {
+	flex: 1 1 auto;
+	display: flex;
+	padding: 4px;
+}
+
+.adminNavSubItem input[type="text"] {
+	flex: 1 1 auto;
+	font-size: 16px;
+	padding: 8px;
+	border: 1px solid #201f2f;
+	border-radius: 4px;
+	min-width: 0;            /* lets it shrink on a narrow phone instead of overflowing */
+}
+
+/* bigger screens: roomier title. The nav already sorts itself out. */
+@media (min-width: 768px) {
+	.adminTitle {
+		padding: 16px 24px;
+	}
+	.adminTitlePage {
+		font-size: 32px;
+	}
 }

@@ -59,6 +59,8 @@ function AdminHead($curfunction,$adminfunctions) {
 			<head>
 				<meta http-equiv="X-UA-Compatible" content="IE=edge">
 				<meta charset="utf-8">
+				<!-- without this, phones draw the admin 980px wide and shrink it to ant size -->
+				<meta name="viewport" content="width=device-width, initial-scale=1">
 				<title>Outfits.lol Admin - <?= $tempadminfunctionsflipped[$curfunction]; ?></title>
 				<link rel="stylesheet" type="text/css" href="/templates/css/admin.css" />
 	  		<link rel="stylesheet" type="text/css" href="/templates/css/jquery.bsmselect.css" />
@@ -70,7 +72,11 @@ function AdminHead($curfunction,$adminfunctions) {
 	  		<script type="text/javascript" src="/templates/js/jquery.bsmselect.compatibility.js"></script>
 			</head>
 			<body>
-				<div class='adminTitle'>Outfits.lol Website Administration - <?= $tempadminfunctionsflipped[$curfunction]; ?></div>
+				<!-- page name gets its own line: "Website Administration - Overview" wrapped three times on a phone -->
+				<div class='adminTitle'>
+					<span class='adminTitleSite'>Outfits.lol Admin</span>
+					<span class='adminTitlePage'><?= $tempadminfunctionsflipped[$curfunction]; ?></span>
+				</div>
 	<?
 }
 
