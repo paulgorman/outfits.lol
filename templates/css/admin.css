@@ -1093,10 +1093,43 @@ label {
 	text-align: center;
 }
 
+/*
+ * "Congrats, you moved the mouse correctly, go you Big Guy."
+ * Hover (mouse), active (the moment of the click or tap), and focus-visible
+ * (tabbing with the keyboard) all light up our orange. Black text, because
+ * white on orange is hard to read for anyone over forty.
+ * The search box button is skipped: it would flash orange every time you
+ * went to type in it.
+ */
 .adminNavItem:hover,
-.adminNavSubItem:hover,
-.adminNavSubPagesItem:hover {
-	background-color: #2c2a3f;
+.adminNavItem:active,
+.adminNavItem:focus-within,
+.adminNavItemSelected:hover,
+.adminNavItemSelected:active,
+.adminNavItemSelected:focus-within,
+.adminNavSubItem:not(:has(form)):hover,
+.adminNavSubItem:not(:has(form)):active,
+.adminNavSubItem:not(:has(form)):focus-within,
+.adminNavSubPagesItem:hover,
+.adminNavSubPagesItem:active,
+.adminNavSubPagesItem:focus-within {
+	background-color: orange;
+	border-color: orange;
+}
+
+.adminNavItem:hover a,
+.adminNavItem:active a,
+.adminNavItem:focus-within a,
+.adminNavItemSelected:hover a,
+.adminNavItemSelected:active a,
+.adminNavItemSelected:focus-within a,
+.adminNavSubItem:not(:has(form)):hover a,
+.adminNavSubItem:not(:has(form)):active a,
+.adminNavSubItem:not(:has(form)):focus-within a,
+.adminNavSubPagesItem:hover a,
+.adminNavSubPagesItem:active a,
+.adminNavSubPagesItem:focus-within a {
+	color: #000;
 }
 
 /* the page you're on: lighter purple and a white border, so you can tell */
