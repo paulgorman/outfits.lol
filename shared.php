@@ -3292,11 +3292,10 @@ function AdminSelectSubCategories($sampleinfo) {
 			}
 		}
 		?>
-				<div class="AdminCategoryListingAddItem" style="margin-left: 2em;">
-					<label for="SubCategories">SubCategories</label>
-				</div>
-				<div class="AdminCategoryListingAddDropDown">
-					<select id="SubCategories" multiple="multiple" name="subcategories[]" title="SubCategories" class="sminit">
+				<div class="adminField">
+					<label for="SubCategories">Sub-Categories</label>
+					<div class="adminMultiSelect">
+					<select id="SubCategories" multiple="multiple" name="subcategories[]" title="Add a sub-category..." class="sminit">
 		<?
 		$string = "";
 		foreach($subcategorieslist as $subid => $subcategory) {
@@ -3315,8 +3314,8 @@ function AdminSelectSubCategories($sampleinfo) {
 		echo $string;
 		?>
 					</select>
+					</div>
 				</div>
-			<div class="clear"></div>
 		<?
 	}
 }

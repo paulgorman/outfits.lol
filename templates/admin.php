@@ -113,47 +113,98 @@ function AdminsamplesButtonBar() {
 	<?
 }
 
+
+/*
+ * ======================================================================
+ *  THE ADMIN PAGES, MOBILE FIRST (2026 rewrite, Phase 3 of PLAN.md)
+ * ======================================================================
+ *
+ * Everything below this banner was rebuilt from the 2016 floaty-div
+ * version. The whole admin now uses a small set of building blocks,
+ * styled at the bottom of templates/css/admin.css:
+ *
+ *   adminPanel          a dark purple box, 960px max, full width on a phone
+ *   adminPanelHeader    the title row of a panel (and the page links, if any)
+ *   adminList           a stack of adminListRow, one per thing
+ *   adminListRowMain    the big tappable part of a row: name plus details
+ *   adminBadge          a little word-pill: "Featured", "Hidden", "Public"
+ *   adminButton         a real button you can hit with a thumb
+ *   adminField          a label sitting on top of its input (side by side
+ *                       on a desktop)
+ *   adminChecks         a row of big checkboxes, each with its words
+ *
+ * What changed besides the looks:
+ *   - "Edit" and "show me the samples" are plain links now, not
+ *     onclick-submits-a-hidden-form. Long-press, middle-click, and the
+ *     back button all work. Deletes are still POST forms, because a link
+ *     that deletes things is how a web crawler empties your closet.
+ *   - The old icon soup (green dot, grey dot, blue dot, stop sign) is now
+ *     words. Nobody remembers what the blue dot meant. Not even me.
+ *   - Every form field keeps its exact old name="", so the save
+ *     functions in shared.php never noticed anything happened.
+ */
+
+
+/*
+ * ShowAdminDeleteFormButton: a tiny POST form holding one red "Delete"
+ * button. The delete functions in shared.php show an "are you sure?"
+ * page first, so this one tap is not the point of no return.
+ */
+function ShowAdminDeleteFormButton($form_action_address, $hidden_form_values, $what_gets_deleted) {
+	?>
+		<form class="adminInlineForm" method="POST" action="<?= $form_action_address ?>">
+			<? foreach ($hidden_form_values as $hidden_field_name => $hidden_field_value) { ?>
+				<input type="hidden" name="<?= $hidden_field_name ?>" value="<?= htmlspecialchars($hidden_field_value, ENT_QUOTES) ?>">
+			<? } ?>
+			<button type="submit" class="adminButton adminButtonSmall adminButtonDanger" title="Delete <?= htmlspecialchars($what_gets_deleted, ENT_QUOTES) ?>">Delete</button>
+		</form>
+	<?
+}
+
 function AdminShowNewAdminForm() {
 	?>
 		<form method="POST" action="/admin/admin_users" enctype="multipart/form-data">
 			<input type="hidden" name="function" value="save_new_admin">
-			<div class="AdminCategoryListingAddContainer">
-				<div class="AdminCategoryListingAddHeader">ADD NEW ADMINISTRATIVE USER</div>
-				<div class="AdminCategoryListingAddItem">Username</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="username" size="40"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">Password</div>
-				<div class="AdminCategoryListingAddValue"><input type="password" name="password" size="40"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddSubmit"><input type="submit" value="Add User"></div>
-				<div class="clear"></div>
-			</div> <!-- class="AdminCategoryListingAddContainer" -->
+			<section class="adminPanel adminPanelAdd">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Add a new admin user</h2>
+				</div>
+				<div class="adminField">
+					<label for="new_admin_username">Username</label>
+					<input type="text" name="username" id="new_admin_username" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+				</div>
+				<div class="adminField">
+					<label for="new_admin_password">Password</label>
+					<input type="password" name="password" id="new_admin_password" autocomplete="new-password">
+				</div>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Add User</button>
+				</div>
+			</section>
 		</form>
 	<?
 }
 
 function AdminShowAdminsList($admins) {
+	// there is no "edit an admin" page (the old rows posted to /admin/admins/edit,
+	// which goes nowhere), so these rows are just names, not links
 	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemDescription">Administrative Users</div>
-				<div class="AdminCategoryListItemURL">[<a href="/admin/admin_users/add_admin">New Administrator</a>]</div>
+		<section class="adminPanel">
+			<div class="adminPanelHeader">
+				<h2 class="adminPanelTitle">Admin users</h2>
+				<a class="adminButton adminButtonSmall" href="/admin/admin_users/add_admin">New Administrator</a>
 			</div>
-			<div class="clear"></div>
-			<? foreach ($admins as $key => $username) { ?>
-				<form method="POST" action="/admin/admins/edit/<?= $username; ?>" name="edit<?= $username; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="username" value="<?= $username; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $username; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $username; ?>'].submit(); return false;"><?= $username; ?></div>
+			<div class="adminList">
+				<? foreach ($admins as $admin_username) { ?>
+					<div class="adminListRow">
+						<div class="adminListRowMain">
+							<span class="adminListRowName"><?= $admin_username; ?></span>
+						</div>
 					</div>
-				</form>
-			<? } ?>
-			<div class="AdminCategoryListHeader">
+				<? } ?>
 			</div>
-		</div>
-	<?	
+		</section>
+	<?
 }
 
 function AdminPagesButtonBar($pages) {
@@ -170,32 +221,34 @@ function AdminPagesButtonBar($pages) {
 
 function AdminPagesListPage($pagedata) {
 	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemDescription">Pages</div>
+		<section class="adminPanel">
+			<div class="adminPanelHeader">
+				<h2 class="adminPanelTitle">Pages</h2>
 			</div>
-			<div class="clear"></div>
-			<? foreach (array_keys($pagedata) as $url) { ?>
-				<form method="POST" action="/admin/pages/edit/<?= $url; ?>" name="edit<?= $url; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="pageurl" value="<?= $url; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $url; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"><?= $pagedata[$url]['name']; ?></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $url; ?>'].submit(); return false;"><?= nicetime($pagedata[$url]['lastupdated']); ?></div>
+			<div class="adminList">
+				<? foreach ($pagedata as $page_url => $page_details) { ?>
+					<div class="adminListRow">
+						<a class="adminListRowMain" href="/admin/pages/edit/<?= $page_url; ?>">
+							<span class="adminListRowName"><?= $page_details['name']; ?></span>
+							<span class="adminListRowDetail">Updated <?= nicetime($page_details['lastupdated']); ?></span>
+						</a>
+						<div class="adminListRowActions">
+							<a class="adminButton adminButtonSmall" href="/admin/pages/edit/<?= $page_url; ?>">Edit</a>
+						</div>
 					</div>
-				</form>
-			<? } ?>
-			<div class="AdminCategoryListHeader">
+				<? } ?>
 			</div>
-		</div>
+		</section>
 	<?
 }
 
 function AdminPagesEditPage($pagedata) {
 	?>
-		<div class="AdminsampleContainer">
-			<div class="AdminsampleEditHeader"><?= MakeCase($pagedata['pagename']); ?> Page Editor</div>
-			<div class="AdminsampleLastUpdateHeader">Last updated <?= nicetime($pagedata['htmltime']) ?></div>
+		<section class="adminPanel">
+			<div class="adminPanelHeader">
+				<h2 class="adminPanelTitle"><?= MakeCase($pagedata['pagename']); ?> Page Editor</h2>
+				<span class="adminPanelSubtitle">Last updated <?= nicetime($pagedata['htmltime']) ?></span>
+			</div>
 			<link rel="stylesheet" type="text/css" href="/templates/redactor/redactor.css">
 			<script src="/templates/redactor/redactor.min.js"></script>
 			<script src="/templates/redactor/fontcolor.js"></script>
@@ -218,397 +271,331 @@ function AdminPagesEditPage($pagedata) {
 			</script>
 			<form method="POST" action="/admin/pages/update">
 				<input type="hidden" name="pageurl" value="<?= $pagedata['pagename']; ?>">
-				<textarea id="redactor_content" name="content">
-					<?= stripslashes($pagedata['html']); ?>
-				</textarea>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddSubmit">
-				<input type="submit" value="&nbsp;&nbsp;&nbsp;Save&nbsp;&nbsp;&nbsp;" name="send">
+				<div class="adminPageEditor">
+					<textarea id="redactor_content" name="content">
+						<?= stripslashes($pagedata['html']); ?>
+					</textarea>
+				</div>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary" name="send" value="Save">Save</button>
 				</div>
 			</form>
 			<form method="POST" action="/admin/pages/revert">
-				<div class="AdminCategoryListingAddSubmit">
 				<input type="hidden" name="pageurl" value="<?= $pagedata['pagename']; ?>">
-				<input type="submit" value="Revert to content from <?= niceTime($pagedata['undotime']); ?>" name="Revert">
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton" name="Revert" value="Revert">Revert to content from <?= niceTime($pagedata['undotime']); ?></button>
 				</div>
-				<div class="clear"></div>
 			</form>
+		</section>
+	<?
+}
+
+
+/*
+ * ShowAdminSampleListPanel: the ONE list of samples. The old file had this
+ * same block of HTML copy/pasted six times (all, newest, featured, hidden,
+ * by category, by tag, by search), and every copy had drifted a little.
+ * Now the six Adminsample... functions below just pick a title and hand
+ * their samples over to this one.
+ *
+ * $samples can be a plain array or a mysqli result: foreach eats both.
+ * $page_navigation_html is the "First / Previous / Page 2 of 9" links,
+ * or "" for lists that are not split into pages.
+ */
+function ShowAdminSampleListPanel($panel_title, $samples, $page_navigation_html) {
+	$how_many_samples_shown = 0;
+	?>
+		<section class="adminPanel">
+			<div class="adminPanelHeader">
+				<h2 class="adminPanelTitle"><?= $panel_title ?></h2>
+				<? if ($page_navigation_html !== "") { ?>
+					<nav class="adminPager"><?= $page_navigation_html ?></nav>
+				<? } ?>
+			</div>
+			<div class="adminList">
+				<?
+					foreach ($samples as $sample_details) {
+						ShowAdminSampleListRow($sample_details);
+						$how_many_samples_shown++;
+					}
+				?>
+				<? if ($how_many_samples_shown === 0) { ?>
+					<p class="adminEmptyList">Nothing here yet. The closet echoes.</p>
+				<? } ?>
+			</div>
+			<? if ($page_navigation_html !== "" && $how_many_samples_shown > 5) { ?>
+				<!-- page links again at the bottom, so a long list doesn't mean scrolling back up -->
+				<div class="adminPanelFooter">
+					<nav class="adminPager"><?= $page_navigation_html ?></nav>
+				</div>
+			<? } ?>
+		</section>
+	<?
+}
+
+/*
+ * ShowAdminSampleListRow: one sample in a list. The whole name area is a
+ * link to the edit page; "View" opens the public page.
+ * The edit page is /admin/samples/edit/<oid>: shared.php has always
+ * accepted the oid in the URL (its "hack for direct URL access" comment).
+ */
+function ShowAdminSampleListRow($sample_details) {
+	$sample_edit_address = "/admin/samples/edit/" . (int)$sample_details['oid'];
+	$sample_public_address = "/sample/" . $sample_details['url'];
+
+	// only the search results ask the database for display_name
+	$sample_display_name = "";
+	if (isset($sample_details['display_name'])) {
+		$sample_display_name = trim((string)$sample_details['display_name']);
+	}
+	?>
+		<div class="adminListRow">
+			<a class="adminListRowMain" href="<?= $sample_edit_address ?>">
+				<span class="adminListRowName"><?= $sample_details['name'] ?></span>
+				<? if ($sample_display_name !== "" && $sample_display_name !== $sample_details['name']) { ?>
+					<span class="adminListRowDetail">a.k.a. <?= $sample_display_name ?></span>
+				<? } ?>
+				<? if (!isEmpty($sample_details['slug'])) { ?>
+					<span class="adminListRowDetail"><?= $sample_details['slug'] ?></span>
+				<? } ?>
+				<span class="adminListRowDetail adminListRowDetailQuiet">Updated <?= nicetime($sample_details['last_updated']); ?></span>
+			</a>
+			<div class="adminListRowBadges">
+				<? ShowAdminSampleStatusBadges($sample_details); ?>
+			</div>
+			<div class="adminListRowActions">
+				<a class="adminButton adminButtonSmall" href="<?= $sample_edit_address ?>">Edit</a>
+				<a class="adminButton adminButtonSmall" href="<?= $sample_public_address ?>">View</a>
+			</div>
 		</div>
 	<?
+}
+
+/*
+ * ShowAdminSampleStatusBadges: was AdminsampleListIconColumn(), the
+ * green/grey/blue dots. Same three rules, now in words.
+ */
+function ShowAdminSampleStatusBadges($sample_details) {
+	if ((int)$sample_details['is_highlighted'] === 1) {
+		echo "<span class='adminBadge adminBadgeGood'>Featured</span>";
+	}
+	if ((int)$sample_details['is_active'] === 0) {
+		echo "<span class='adminBadge adminBadgeOff'>Inactive</span>";
+	} elseif ((int)$sample_details['is_active'] === 1 && (int)$sample_details['is_searchable'] === 0) {
+		echo "<span class='adminBadge adminBadgeQuiet'>Hidden from search</span>";
+	}
 }
 
 function AdminsampleListPage($samples,$page) {
-	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemURL">All samples</div>
-				<div class="ListPage"><?= ShowPageNav(FigurePageNav("list_all",$page)); ?></div>
-			</div>
-			<div class="clear"></div>
-			<? foreach ($samples as $key => $values) { ?>
-				<form method="POST" action="/admin/samples/edit/<?= $values['oid']; ?>" name="edit<?= $values['oid']; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="oid" value="<?= $values['oid']; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"><a href="/samples/<?= $values['url']; ?>"><?= $values['name'] ?></a></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= $values['slug'] ?></div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= nicetime($values['last_updated']); ?></div>
-						<? AdminsampleListIconColumn($values); ?>
-					</div>
-				</form>
-			<? } ?>
-			<div class="AdminCategoryListHeader">
-				<div class="ListPage"><?= ShowPageNav(FigurePageNav("list_all",$page)); ?></div>
-			</div>
-		</div>
-	<?
-}
-
-function AdminsampleListIconColumn($values) {
-	if((int)$values['is_highlighted'] === 1) { 
-		?><a href="javascript:;" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;" class="AdminCategoryPublishedIcon" title="Featured Highlighted sample"></a><?
-	}
-	if((int)$values['is_active'] === 0) { 
-		?><a href="javascript:;" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;" class="AdminCategoryInactiveIcon" title="Inactive sample"></a><?
-	} elseif ((int)$values['is_active'] === 1 && (int)$values['is_searchable'] === 0) { 
-		?><a href="javascript:;" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;" class="AdminCategorySecretIcon" title="Secret sample"></a><?
-	}
+	ShowAdminSampleListPanel("All samples", $samples, ShowPageNav(FigurePageNav("list_all",$page)));
 }
 
 function AdminsampleListPageNew($samples,$page) {
-	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemDescription">Recently Added/Updated samples</div>
-				<div class="ListPage"><?= ShowPageNav(FigurePageNav("list_new",$page)); ?></div>
-			</div>
-			<div class="clear"></div>
-			<? foreach ($samples as $key => $values) { ?>
-				<form method="POST" action="/admin/samples/edit/<?= $values['oid']; ?>" name="edit<?= $values['oid']; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="oid" value="<?= $values['oid']; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"><a href="/samples/<?= $values['url']; ?>"><?= $values['name'] ?></a></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= $values['slug'] ?></div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= nicetime($values['last_updated']); ?></div>
-						<? AdminsampleListIconColumn($values); ?>
-					</div>
-				</form>
-			<? } ?>
-			<div class="AdminCategoryListHeader">
-				<div class="ListPage"><?= ShowPageNav(FigurePageNav("list_new",$page)); ?></div>
-			</div>
-		</div>
-	<?
+	ShowAdminSampleListPanel("Recently added and updated", $samples, ShowPageNav(FigurePageNav("list_new",$page)));
 }
 
 function AdminsampleListPageFeat($samples,$page) {
-	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemDescription">Featured samples</div>
-				<div class="ListPage"><?= ShowPageNav(FigurePageNav("list_feat",$page)); ?></div>
-			</div>
-			<div class="clear"></div>
-			<? foreach ($samples as $key => $values) { ?>
-				<form method="POST" action="/admin/samples/edit/<?= $values['oid']; ?>" name="edit<?= $values['oid']; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="oid" value="<?= $values['oid']; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"><a href="/samples/<?= $values['url']; ?>"><?= $values['name'] ?></a></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= $values['slug'] ?></div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= nicetime($values['last_updated']); ?></div>
-						<? AdminsampleListIconColumn($values); ?>
-					</div>
-				</form>
-			<? } ?>
-			<div class="AdminCategoryListHeader">
-				<div class="ListPage"><?= ShowPageNav(FigurePageNav("list_feat",$page)); ?></div>
-			</div>
-		</div>
-	<?
+	ShowAdminSampleListPanel("Featured samples", $samples, ShowPageNav(FigurePageNav("list_feat",$page)));
 }
 
 function AdminsampleListPageSecret($samples,$page) {
-	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemDescription">Unsearchable / Inactive samples</div>
-				<div class="ListPage"><?= ShowPageNav(FigurePageNav("list_secret",$page)); ?></div>
-			</div>
-			<div class="clear"></div>
-			<? foreach ($samples as $key => $values) { ?>
-				<form method="POST" action="/admin/samples/edit/<?= $values['oid']; ?>" name="edit<?= $values['oid']; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="oid" value="<?= $values['oid']; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"><a href="/samples/<?= $values['url']; ?>"><?= $values['name'] ?></a></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= $values['slug'] ?></div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= nicetime($values['last_updated']); ?></div>
-						<? AdminsampleListIconColumn($values); ?>
-					</div>
-				</form>
-			<? } ?>
-			<div class="AdminCategoryListHeader">
-				<div class="ListPage"><?= ShowPageNav(FigurePageNav("list_secret",$page)); ?></div>
-			</div>
-		</div>
-	<?
+	ShowAdminSampleListPanel("Hidden and inactive samples", $samples, ShowPageNav(FigurePageNav("list_secret",$page)));
 }
 
 function AdminsampleListPageByCategory($samples,$page) {
-	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemDescription">All <?= mysqli_num_rows($samples); ?> samples in <?= CategoryNameFromURL($_REQUEST['categoryurl']); ?></div>
-			</div>
-			<div class="clear"></div>
-			<? foreach ($samples as $key => $values) { ?>
-				<form method="POST" action="/admin/samples/edit/<?= $values['oid']; ?>" name="edit<?= $values['oid']; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="oid" value="<?= $values['oid']; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"><a href="/samples/<?= $values['url']; ?>"><?= $values['name'] ?></a></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= $values['slug'] ?></div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= nicetime($values['last_updated']); ?></div>
-						<? AdminsampleListIconColumn($values); ?>
-					</div>
-				</form>
-			<? } ?>
-		</div>
-	<?
+	$panel_title = "All " . mysqli_num_rows($samples) . " samples in " . CategoryNameFromURL($_REQUEST['categoryurl']);
+	ShowAdminSampleListPanel($panel_title, $samples, "");
 }
 
 function AdminsampleListPageByTag($samples,$page) {
-	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemDescription">All <?= mysqli_num_rows($samples); ?> samples tagged <?= MakeCase(TagNameFromTID($_REQUEST['tid'])); ?></div>
-			</div>
-			<div class="clear"></div>
-			<? foreach ($samples as $key => $values) { ?>
-				<form method="POST" action="/admin/samples/edit/<?= $values['oid']; ?>" name="edit<?= $values['oid']; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="oid" value="<?= $values['oid']; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"><a href="/samples/<?= $values['url']; ?>"><?= $values['name'] ?></a></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= $values['slug'] ?></div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= nicetime($values['last_updated']); ?></div>
-						<? AdminsampleListIconColumn($values); ?>
-					</div>
-				</form>
-			<? } ?>
-		</div>
-	<?
+	$panel_title = "All " . mysqli_num_rows($samples) . " samples tagged " . MakeCase(TagNameFromTID($_REQUEST['tid']));
+	ShowAdminSampleListPanel($panel_title, $samples, "");
 }
 
 function AdminsampleListPageBySearchResult($samples,$page) {
-	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemDescription">All <?= mysqli_num_rows($samples); ?> samples Matching Search "<?
-					echo htmlspecialchars(strip_tags(MakeCase(trim($_REQUEST['q']))));
-					echo htmlspecialchars(strip_tags(MakeCase(trim($_REQUEST['listpage']))));
-					?>"</div>
-			</div>
-			<div class="clear"></div>
-			<? foreach ($samples as $key => $values) { ?>
-				<form method="POST" action="/admin/samples/edit/<?= $values['oid']; ?>" name="edit<?= $values['oid']; ?>">
-					<input type="hidden" name="function" value="edit">
-					<input type="hidden" name="oid" value="<?= $values['oid']; ?>">
-					<div class="AdminCategoryListRow" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;">
-						<div class="AdminCategoryListItemCategory"><a href="/samples/<?= $values['url']; ?>" title="<?= $values['url']; ?>"><?= $values['name'] ?></a></div>
-						<div class="AdminCategoryListItemShort"><a href="/samples/<?= $values['alt_url']; ?>" title="<?= $values['alt_url']; ?>">(<?= $values['display_name'] ?>)</a></div>
-						<div class="AdminCategoryListItemIcon"></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= $values['slug'] ?></div>
-						<div class="AdminCategoryListItemLastUpdated" onclick="document.forms['edit<?= $values['oid']; ?>'].submit(); return false;"><?= nicetime($values['last_updated']); ?></div>
-						<? AdminsampleListIconColumn($values); ?>
-					</div>
-				</form>
-			<? } ?>
-		</div>
-	<?
+	// the search word arrives as ?q= from the search box, or as the end of
+	// the URL (/admin/samples/search/purple), so show whichever one we got
+	$search_words_shown = htmlspecialchars(strip_tags(MakeCase(trim($_REQUEST['q'] ?? ''))));
+	$search_words_shown .= htmlspecialchars(strip_tags(MakeCase(trim($_REQUEST['listpage'] ?? ''))));
+	$panel_title = "All " . mysqli_num_rows($samples) . " samples matching \"" . $search_words_shown . "\"";
+	ShowAdminSampleListPanel($panel_title, $samples, "");
 }
 
 function ShowPageNav($pageinfo) {
 	$returnhtml = "";
 	if ($pageinfo['page'] != $pageinfo['first']) {
-		$returnhtml .= "<div class='ListPageItem'><a href='/admin/samples/". $pageinfo['type'] ."/". $pageinfo['first'] ."'>First</a></div>";
+		$returnhtml .= "<a class='adminPagerLink' href='/admin/samples/". $pageinfo['type'] ."/". $pageinfo['first'] ."'>First</a>";
 	}
 	if ($pageinfo['previous'] != $pageinfo['page'] && $pageinfo['previous'] != $pageinfo['first']) {
-		$returnhtml .= "<div class='ListPageItem'><a href='/admin/samples/". $pageinfo['type'] ."/". $pageinfo['previous'] ."'>Previous</a></div>";
+		$returnhtml .= "<a class='adminPagerLink' href='/admin/samples/". $pageinfo['type'] ."/". $pageinfo['previous'] ."'>Previous</a>";
 	}
-	$returnhtml .= "<div class='ListPageItem'> (Page ". $pageinfo['page'] ." of ". $pageinfo['maximum'] .") </div>";
+	$returnhtml .= "<span class='adminPagerHere'>Page ". $pageinfo['page'] ." of ". $pageinfo['maximum'] ."</span>";
 	if ($pageinfo['next'] != $pageinfo['page'] && $pageinfo['next'] != $pageinfo['maximum']) {
-		$returnhtml .= "<div class='ListPageItem'><a href='/admin/samples/". $pageinfo['type'] ."/". $pageinfo['next'] ."'>Next</a></div>";
+		$returnhtml .= "<a class='adminPagerLink' href='/admin/samples/". $pageinfo['type'] ."/". $pageinfo['next'] ."'>Next</a>";
 	}
 	if ($pageinfo['page'] != $pageinfo['maximum']){
-		$returnhtml .= "<div class='ListPageItem'><a href='/admin/samples/". $pageinfo['type'] ."/". $pageinfo['maximum'] ."'>Last</a></div>";
+		$returnhtml .= "<a class='adminPagerLink' href='/admin/samples/". $pageinfo['type'] ."/". $pageinfo['maximum'] ."'>Last</a>";
 	}
 	return $returnhtml;
 }
 
 function AdminShowLocations($locations) {
+	// No "show samples here" button: the old magnifying glass posted
+	// search_location, which ShowAdminPage() never learned. It just
+	// reloaded this list. Add it back when it does something.
 	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemURL">Locations</div>
+		<section class="adminPanel">
+			<div class="adminPanelHeader">
+				<h2 class="adminPanelTitle">Locations</h2>
 			</div>
-			<div class="clear"></div>
-			<? if (isset($locations)) { foreach ($locations as $key => $values) { ?>
-				<div class="AdminCategoryListRow">
-					<form method="POST" action="/admin/locations_list" name="edit<?= $values['lid']; ?>">
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $values['lid']; ?>'].submit(); return false;"><?=$values['city'] ?></div>
-						<div class="AdminCategoryListItemURL" onclick="document.forms['edit<?= $values['lid']; ?>'].submit(); return false;"><?=$values['state'] ?></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['lid']; ?>'].submit(); return false;">&nbsp;</div>
-						<div class="AdminCategoryListItemIcon" onclick="document.forms['edit<?= $values['lid']; ?>'].submit(); return false;">
-							<input type="hidden" name="lid" value="<?= $values['lid']; ?>">
-							<input type="hidden" name="function" value="edit_location">
-							<a href="javascript:;" onclick="document.forms['edit<?= $values['lid']; ?>'].submit(); return false;" class="AdminCategoryEditIcon" title="Rename <?= $values['city'] ?>, <?= $values['state'] ?>."></a>
-						</div> <!-- class="AdminCategoryListItem" -->
-					</form>
-					<div class="AdminCategoryListItemIcon">
-						<form method="POST" action="/admin/locations_list" name="del<?= $values['lid']; ?>">
-							<input type="hidden" name="lid" value="<?= $values['lid']; ?>">
-							<input type="hidden" name="function" value="del_location">
-							<a href="javascript:;" onclick="document.forms['del<?= $values['lid']; ?>'].submit(); return false;" class="AdminCategoryRemoveIcon" title="Remove <?= $values['city']; ?>, <?= $values['state'] ?>."></a>
-						</form>
+			<div class="adminList">
+				<? foreach ($locations as $location_details) { ?>
+					<? $location_edit_address = "/admin/locations_list/edit_location?lid=" . (int)$location_details['lid']; ?>
+					<div class="adminListRow">
+						<a class="adminListRowMain" href="<?= $location_edit_address ?>">
+							<span class="adminListRowName"><?= $location_details['city'] ?>, <?= $location_details['state'] ?></span>
+						</a>
+						<div class="adminListRowActions">
+							<a class="adminButton adminButtonSmall" href="<?= $location_edit_address ?>">Rename</a>
+							<?
+								// careful: unlike tags and categories, this one deletes right away, no "are you sure?" page
+								ShowAdminDeleteFormButton(
+									"/admin/locations_list",
+									array("lid" => $location_details['lid'], "function" => "del_location"),
+									$location_details['city'] . ", " . $location_details['state']
+								);
+							?>
+						</div>
 					</div>
-					<div class="AdminCategoryListItemIcon">
-						<form method="POST" action="/admin/locations_list" name="search<?= $values['lid']; ?>">
-							<input type="hidden" name="lid" value="<?= $values['lid']; ?>">
-							<input type="hidden" name="function" value="search_location">
-							<a href="javascript:;" onclick="document.forms['search<?= $values['lid']; ?>'].submit(); return false;" class="AdminCategorySearchIcon" title="Show all samples in '<?= $values['city'] ?>, <?= $values['state'] ?>."></a>
-						</form>
-					</div>
-				</div>  <!-- class="AdminCategoryListRow" -->
-			<? } } ?>
-		</div> <!-- AdminCategoryListContainer -->
-		<div class="clear"></div>
+				<? } ?>
+				<? if (count($locations) === 0) { ?>
+					<p class="adminEmptyList">No locations yet.</p>
+				<? } ?>
+			</div>
+		</section>
+
 		<form method="POST" action="/admin/locations_list" enctype="multipart/form-data">
 			<input type="hidden" name="function" value="add_location">
-			<div class="AdminCategoryListingAddContainer">
-				<div class="AdminCategoryListingAddHeader">ADD NEW LOCATION</div>
-				<div class="AdminCategoryListingAddItem">City</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="city" size="30"></div>
-				<div class="AdminCategoryListingAddItem">State</div>
-				<div class="AdminCategoryListingAddValue"><select name="state"><option value="">Select a State</option><?= StateOptionsDropDown("none"); ?></select></div>
-				<div class="AdminCategoryListingAddSubmit"><input type="submit" value="Add Location"></div>
-				<div class="clear"></div>
-			</div> <!-- class="AdminCategoryListingAddContainer" -->
+			<section class="adminPanel adminPanelAdd">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Add a new location</h2>
+				</div>
+				<div class="adminField">
+					<label for="new_location_city">City</label>
+					<input type="text" name="city" id="new_location_city">
+				</div>
+				<div class="adminField">
+					<label for="new_location_state">State</label>
+					<select name="state" id="new_location_state"><option value="">Select a State</option><?= StateOptionsDropDown("none"); ?></select>
+				</div>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Add Location</button>
+				</div>
+			</section>
 		</form>
 	<?
 }
 
 function AdminShowTags($tags,$quantity) {
 	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemURL">Tags (<?= $quantity ?>)</div>
+		<section class="adminPanel">
+			<div class="adminPanelHeader">
+				<h2 class="adminPanelTitle">Tags (<?= $quantity ?>)</h2>
 			</div>
-			<div class="clear"></div>
-			<? if (isset($tags)) { foreach ($tags as $key => $values) { ?>
-				<div class="AdminCategoryListRow">
-					<form method="POST" action="/admin/tags_list" name="edit<?= $values['tid']; ?>">
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $values['tid']; ?>'].submit(); return false;"><?=$values['name'] ?></div>
-						<div class="AdminCategoryListItemURL" onclick="document.forms['edit<?= $values['tid']; ?>'].submit(); return false;">&nbsp;</div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $values['tid']; ?>'].submit(); return false;">&nbsp;</div>
-						<div class="AdminCategoryListItemIcon" onclick="document.forms['edit<?= $values['tid']; ?>'].submit(); return false;">
-							<input type="hidden" name="tid" value="<?= $values['tid']; ?>">
-							<input type="hidden" name="function" value="edit_tag">
-							<a href="javascript:;" onclick="document.forms['edit<?= $values['tid']; ?>'].submit(); return false;" class="AdminCategoryEditIcon" title="Edit '<?= $values['name'] ?>' Tag"></a>
-						</div> <!-- class="AdminCategoryListItem" -->
-					</form>
-					<div class="AdminCategoryListItemIcon">
-						<form method="POST" action="/admin/tags_list" name="del<?= $values['tid']; ?>">
-							<input type="hidden" name="tid" value="<?= $values['tid']; ?>">
-							<input type="hidden" name="function" value="del_tag">
-							<a href="javascript:;" onclick="document.forms['del<?= $values['tid']; ?>'].submit(); return false;" class="AdminCategoryRemoveIcon" title="Remove '<?= $values['name']; ?>' Tag"></a>
-						</form>
+			<div class="adminList">
+				<? foreach ($tags as $tag_details) { ?>
+					<? $tag_edit_address = "/admin/tags_list/edit_tag?tid=" . (int)$tag_details['tid']; ?>
+					<div class="adminListRow">
+						<a class="adminListRowMain" href="<?= $tag_edit_address ?>">
+							<span class="adminListRowName"><?= $tag_details['name'] ?></span>
+						</a>
+						<div class="adminListRowActions">
+							<a class="adminButton adminButtonSmall" href="<?= $tag_edit_address ?>">Edit</a>
+							<a class="adminButton adminButtonSmall" href="/admin/tags_list/search_tag?tid=<?= (int)$tag_details['tid'] ?>">Samples</a>
+							<?
+								ShowAdminDeleteFormButton(
+									"/admin/tags_list",
+									array("tid" => $tag_details['tid'], "function" => "del_tag"),
+									"the " . $tag_details['name'] . " tag"
+								);
+							?>
+						</div>
 					</div>
-					<div class="AdminCategoryListItemIcon">
-						<form method="POST" action="/admin/tags_list" name="search<?= $values['tid']; ?>">
-							<input type="hidden" name="tid" value="<?= $values['tid']; ?>">
-							<input type="hidden" name="function" value="search_tag">
-							<a href="javascript:;" onclick="document.forms['search<?= $values['tid']; ?>'].submit(); return false;" class="AdminCategorySearchIcon" title="Show all samples tagged '<?= $values['name']; ?>'"></a>
-						</form>
-					</div>
-				</div>  <!-- class="AdminCategoryListRow" -->
-			<? } } ?>
-		</div> <!-- AdminCategoryListContainer -->
-		<div class="clear"></div>
+				<? } ?>
+				<? if (count($tags) === 0) { ?>
+					<p class="adminEmptyList">No tags yet. Adjectives welcome.</p>
+				<? } ?>
+			</div>
+		</section>
+
 		<form method="POST" action="/admin/tags_list" enctype="multipart/form-data">
 			<input type="hidden" name="function" value="add_tag">
-			<div class="AdminCategoryListingAddContainer">
-				<div class="AdminCategoryListingAddHeader">ADD NEW TAG</div>
-				<div class="AdminCategoryListingAddItem">Name</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="name" size="40"></div>
-				<div class="AdminCategoryListingAddSubmit"><input type="submit" value="Add Tag"></div>
-				<div class="clear"></div>
-			</div> <!-- class="AdminCategoryListingAddContainer" -->
+			<section class="adminPanel adminPanelAdd">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Add a new tag</h2>
+				</div>
+				<div class="adminField">
+					<label for="new_tag_name">Name</label>
+					<input type="text" name="name" id="new_tag_name">
+				</div>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Add Tag</button>
+				</div>
+			</section>
 		</form>
 	<?
 }
 
 function AdminShowCategories ($categorieslist) {
 	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemURL">URL</div>
-				<div class="AdminCategoryListItemCategory">Category Name</div>
-				<div class="AdminCategoryListItemDescription">Description</div>
+		<section class="adminPanel">
+			<div class="adminPanelHeader">
+				<h2 class="adminPanelTitle">Categories (<?= count($categorieslist) ?>)</h2>
 			</div>
-			<div class="clear"></div>
-			<? foreach ($categorieslist as $catkey => $catvalues) { ?>
-				<div class="AdminCategoryListRow">
-					<form method="POST" action="/admin/categories_list" name="edit<?= $catvalues['url']; ?>">
-						<div class="AdminCategoryListItemURL" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;"><?=$catvalues['url'] ?></div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;"><?=$catvalues['category'] ?></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;"><?=$catvalues['description'] ?></div>
-						<?
-							if ($catvalues['highlighted']) {
-								echo "<div class='AdminCategoryHighlightedIcon' title='Highlighted Category'></div>";
-							} else {
-								echo "<div class='AdminCategoryEmptyIcon'></div>";
-							}
-						?>
-						<?
-							if ($catvalues['published']) {
-								echo "<div class='AdminCategoryPublishedIcon' title='Public Listed Category'></div>";
-							} else {
-								echo "<div class='AdminCategoryHiddenIcon' title='Not Listed'></div>";
-							}
-						?>
-						<div class="AdminCategoryListItemIcon" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;">
-							<input type="hidden" name="categoryurl" value="<?= $catvalues['url']; ?>">
-							<input type="hidden" name="function" value="edit_category">
-							<a href="javascript:;" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;" class="AdminCategoryEditIcon" title="Edit '<?= $catvalues['category'] ?>' Category"></a>
-						</div> <!-- class="AdminCategoryListItem" -->
-					</form>
-					<div class="AdminCategoryListItemIcon">
-						<form method="POST" action="/admin/categories_list" name="del<?= $catvalues['url']; ?>">
-							<input type="hidden" name="categoryurl" value="<?= $catvalues['url']; ?>">
-							<input type="hidden" name="function" value="del_category">
-							<a href="javascript:;" onclick="document.forms['del<?= $catvalues['url']; ?>'].submit(); return false;" class="AdminCategoryRemoveIcon" title="Remove '<?= $catvalues['category']; ?>' Category"></a>
-						</form>
+			<div class="adminList">
+				<? foreach ($categorieslist as $category_details) { ?>
+					<? $category_edit_address = "/admin/categories_list/edit_category?categoryurl=" . urlencode($category_details['url']); ?>
+					<div class="adminListRow">
+						<a class="adminListRowMain" href="<?= $category_edit_address ?>">
+							<span class="adminListRowName"><?= $category_details['category'] ?></span>
+							<? if (!isEmpty($category_details['description'])) { ?>
+								<span class="adminListRowDetail"><?= $category_details['description'] ?></span>
+							<? } ?>
+							<span class="adminListRowDetail adminListRowDetailQuiet">/wardrobe/<?= $category_details['url'] ?></span>
+						</a>
+						<div class="adminListRowBadges">
+							<?
+								if ($category_details['published']) {
+									echo "<span class='adminBadge adminBadgeGood' title='Shown in the public Categories list'>Public</span>";
+								} else {
+									echo "<span class='adminBadge adminBadgeOff' title='Not in the public Categories list'>Unlisted</span>";
+								}
+								if ($category_details['highlighted']) {
+									echo "<span class='adminBadge adminBadgeAccent' title='Shown in the home page carousel'>Highlighted</span>";
+								}
+								if ($category_details['subs'] > 0) {
+									echo "<span class='adminBadge adminBadgeQuiet'>Has sub-categories</span>";
+								}
+							?>
+						</div>
+						<div class="adminListRowActions">
+							<a class="adminButton adminButtonSmall" href="<?= $category_edit_address ?>">Edit</a>
+							<a class="adminButton adminButtonSmall" href="/admin/categories_list/search_category?categoryurl=<?= urlencode($category_details['url']) ?>">Samples</a>
+							<?
+								ShowAdminDeleteFormButton(
+									"/admin/categories_list",
+									array("categoryurl" => $category_details['url'], "function" => "del_category"),
+									"the " . $category_details['category'] . " category"
+								);
+							?>
+						</div>
 					</div>
-					<div class="AdminCategoryListItemIcon">
-						<form method="POST" action="/admin/categories_list" name="search<?= $catvalues['url']; ?>">
-							<input type="hidden" name="categoryurl" value="<?= $catvalues['url']; ?>">
-							<input type="hidden" name="function" value="search_category">
-							<a href="javascript:;" onclick="document.forms['search<?= $catvalues['url']; ?>'].submit(); return false;" class="AdminCategorySearchIcon" title="Show all samples in the '<?= $catvalues['category']; ?>' Category"></a>
-						</form>
-					</div>
-					<?
-						if ($catvalues['subs'] > 0) {
-							echo "<div class='AdminCategoryPlusIcon' title='Sub-Categories'></div>";
-						} else {
-							echo "<div class='AdminCategoryEmptyIcon'></div>";
-						}
-					?>
-				</div>  <!-- class="AdminCategoryListRow" -->
-			<? } ?>
-		</div> <!-- AdminCategoryListContainer -->
+				<? } ?>
+				<? if (count($categorieslist) === 0) { ?>
+					<p class="adminEmptyList">No categories yet. Nouns welcome.</p>
+				<? } ?>
+			</div>
+		</section>
 		<script type="text/javascript">
 			<!--
 			function showHide(){
@@ -622,83 +609,99 @@ function AdminShowCategories ($categorieslist) {
 			}
 			-->
 		</script>
-		<div class="clear"></div>
 		<form method="POST" action="/admin/categories_list" enctype="multipart/form-data">
 			<input type="hidden" name="function" value="add_category">
-			<div class="AdminCategoryListingAddContainer">
-				<div class="AdminCategoryListingAddHeader">ADD NEW CATEGORY</div>
-				<div class="AdminCategoryListingAddItem">Category Name:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="form_category" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['form_category'] ?? '')))); ?>" size="20"></div>
-				<div class="AdminCategoryListingAddItem">URL:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" placeholder="Optional" name="form_url" value="<?= htmlspecialchars(trim(($_REQUEST['form_url'] ?? ''))); ?>" size="15" style="text-transform: lowercase"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">Description:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="form_description" value="<?= htmlspecialchars(trim(($_REQUEST['form_description'] ?? ''))); ?>" size="40"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">sample Names:</div>
-				<div class="AdminCategoryListingAddValue"><select name="force_display_names"><?= DisplayNamesOptionsDropDown($dataarray['cid'] ?? NULL) ?></select></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">Category Logo:</div>
-				<div class="AdminCategoryListingAddValue"><input name="filesToUpload[]" class="filesToUpload" size="40" id="1" type="file" multiple="" accept="image/png"></div>
-				<div class="AdminCategoryListItemURL">728x90 PNG</div>
-				<div class="clear"></div>
-    		<div class="AdminCategoryListingAddItem"><label for="published">Public</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" name="published" id="published" class="regular-checkbox big-checkbox" CHECKED /><label title="Publicly Displayed in Categories Listing" for="published"></label>
+			<section class="adminPanel adminPanelAdd">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Add a new category</h2>
 				</div>
-    		<div class="AdminCategoryListingAddItem"><label for="highlighted">Highlighted (1024x680)</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" name="highlighted" id="highlighted" onclick="showHide();" class="regular-checkbox big-checkbox" /><label title="Highlighted in the Carousel" for="highlighted"></label>
-					<input name="carousel_image" id="carousel_image" style="visibility: hidden;" class="filesToUpload" size="40" type="file" multiple="" accept="image/png">
+				<div class="adminField">
+					<label for="new_category_name">Category Name</label>
+					<input type="text" name="form_category" id="new_category_name" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['form_category'] ?? '')))); ?>">
 				</div>
-				<div class="AdminCategoryListingAddSubmit"><input type="submit" value="Add Category"></div>
-				<div class="clear"></div>
-			</div> <!-- class="AdminCategoryListingAddContainer" -->
+				<div class="adminField">
+					<label for="new_category_url">URL</label>
+					<input type="text" placeholder="Optional, made from the name" name="form_url" id="new_category_url" value="<?= htmlspecialchars(trim(($_REQUEST['form_url'] ?? ''))); ?>" style="text-transform: lowercase" autocapitalize="none" autocorrect="off">
+				</div>
+				<div class="adminField">
+					<label for="new_category_description">Description</label>
+					<input type="text" name="form_description" id="new_category_description" value="<?= htmlspecialchars(trim(($_REQUEST['form_description'] ?? ''))); ?>">
+				</div>
+				<div class="adminField">
+					<label for="new_category_display_names">Sample Names</label>
+					<select name="force_display_names" id="new_category_display_names"><?= DisplayNamesOptionsDropDown($dataarray['cid'] ?? NULL) ?></select>
+				</div>
+				<div class="adminField">
+					<label for="new_category_logo">Category Logo</label>
+					<div>
+						<input name="filesToUpload[]" class="filesToUpload" id="1" type="file" multiple="" accept="image/png">
+						<span class="adminFieldHint">728x90 PNG</span>
+					</div>
+				</div>
+				<div class="adminChecks">
+					<label class="adminCheck" title="Publicly Displayed in Categories Listing">
+						<input type="checkbox" name="published" id="published" CHECKED>
+						Public
+					</label>
+					<label class="adminCheck" title="Highlighted in the Carousel">
+						<input type="checkbox" name="highlighted" id="highlighted" onclick="showHide();">
+						Highlighted <span class="adminFieldHint">(1024x680 carousel image)</span>
+					</label>
+				</div>
+				<div class="adminField">
+					<span></span>
+					<input name="carousel_image" id="carousel_image" style="visibility: hidden;" class="filesToUpload" type="file" multiple="" accept="image/png">
+				</div>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Add Category</button>
+				</div>
+			</section>
 		</form>
 	<?
 }
 
 function AdminShowSubCategories ($categorieslist) {
+	// No "show samples" button here: search_subcategory was never wired up
+	// in ShowAdminPage(), so the old magnifying glass just went back to
+	// the category list.
 	?>
-		<div class="AdminCategoryListContainer">
-			<div class="AdminCategoryListHeader">
-				<div class="AdminCategoryListItemURL">URL</div>
-				<div class="AdminCategoryListItemCategory">Sub-Category</div>
-				<div class="AdminCategoryListItemDescription">Description</div>
+		<section class="adminPanel">
+			<div class="adminPanelHeader">
+				<h2 class="adminPanelTitle">Sub-categories</h2>
 			</div>
-			<div class="clear"></div>
-			<? foreach ($categorieslist as $catkey => $catvalues) { ?>
-				<div class="AdminCategoryListRow">
-					<form method="POST" action="/admin/categories_list" name="edit<?= $catvalues['url']; ?>">
-						<div class="AdminCategoryListItemURL" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;"><?=$catvalues['url'] ?></div>
-						<div class="AdminCategoryListItemCategory" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;"><?=$catvalues['category'] ?></div>
-						<div class="AdminCategoryListItemDescription" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;"><?=$catvalues['description'] ?></div>
-						<div class="AdminCategoryListItemIcon" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;">
-							<input type="hidden" name="parent_cid" value="<?= $catvalues['parent_cid']; ?>">
-							<input type="hidden" name="categoryurl" value="<?= $catvalues['url']; ?>">
-							<input type="hidden" name="function" value="edit_subcategory">
-							<a href="javascript:;" onclick="document.forms['edit<?= $catvalues['url']; ?>'].submit(); return false;" class="AdminCategoryEditIcon" title="Edit '<?= $catvalues['category'] ?>' Sub-Category"></a>
-						</div> <!-- class="AdminCategoryListItem" -->
-					</form>
-					<div class="AdminCategoryListItemIcon">
-						<form method="POST" action="/admin/categories_list" name="del<?= $catvalues['url']; ?>">
-							<input type="hidden" name="parent_cid" value="<?= $catvalues['parent_cid']; ?>">
-							<input type="hidden" name="categoryurl" value="<?= $catvalues['url']; ?>">
-							<input type="hidden" name="function" value="del_subcategory">
-							<a href="javascript:;" onclick="document.forms['del<?= $catvalues['url']; ?>'].submit(); return false;" class="AdminCategoryRemoveIcon" title="Remove '<?= $catvalues['category']; ?>' Sub-Category"></a>
-						</form>
+			<div class="adminList">
+				<? foreach ($categorieslist as $subcategory_details) { ?>
+					<?
+						$subcategory_edit_address = "/admin/categories_list/edit_subcategory"
+							. "?categoryurl=" . urlencode($subcategory_details['url'])
+							. "&amp;parent_cid=" . (int)$subcategory_details['parent_cid'];
+					?>
+					<div class="adminListRow">
+						<a class="adminListRowMain" href="<?= $subcategory_edit_address ?>">
+							<span class="adminListRowName"><?= $subcategory_details['category'] ?></span>
+							<? if (!isEmpty($subcategory_details['description'])) { ?>
+								<span class="adminListRowDetail"><?= $subcategory_details['description'] ?></span>
+							<? } ?>
+							<span class="adminListRowDetail adminListRowDetailQuiet"><?= $subcategory_details['url'] ?></span>
+						</a>
+						<div class="adminListRowActions">
+							<a class="adminButton adminButtonSmall" href="<?= $subcategory_edit_address ?>">Edit</a>
+							<?
+								ShowAdminDeleteFormButton(
+									"/admin/categories_list",
+									array(
+										"parent_cid" => $subcategory_details['parent_cid'],
+										"categoryurl" => $subcategory_details['url'],
+										"function" => "del_subcategory"
+									),
+									"the " . $subcategory_details['category'] . " sub-category"
+								);
+							?>
+						</div>
 					</div>
-					<div class="AdminCategoryListItemIcon">
-						<form method="POST" action="/admin/categories_list" name="search<?= $catvalues['url']; ?>">
-							<input type="hidden" name="parent_cid" value="<?= $catvalues['parent_cid']; ?>">
-							<input type="hidden" name="categoryurl" value="<?= $catvalues['url']; ?>">
-							<input type="hidden" name="function" value="search_subcategory">
-							<a href="javascript:;" onclick="document.forms['search<?= $catvalues['url']; ?>'].submit(); return false;" class="AdminCategorySearchIcon" title="Show all samples in the '<?= $catvalues['category']; ?>' Sub-Category"></a>
-						</form>
-					</div>
-				</div>  <!-- class="AdminCategoryListRow" -->
-			<? } ?>
-		</div> <!-- AdminCategoryListContainer -->
+				<? } ?>
+			</div>
+		</section>
 	<?
 }
 
@@ -708,8 +711,11 @@ function AdminShowDeleteConfirmation($id,$desc,$urlDo,$urlCancel,$nextfunction) 
 			<form method="POST" action="/admin/<?= $urlDo ?>">
 				<input type="hidden" name="targetcategoryurl" value="<?= $id ?>">
 				<input type="hidden" name="function" value="<?= $nextfunction ?>">
-				Are you sure you want to delete <B><?= $desc ?></B>?<br>
-				<input type="submit" value="Delete"> <input type="button" name="Cancel" value="Oops, no, totally not! Go Back! Cancel!" onclick="window.location='/admin/<?= $urlCancel ?>'">
+				<p>Are you sure you want to delete <B><?= $desc ?></B>?</p>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonDanger">Delete</button>
+					<button type="button" class="adminButton" name="Cancel" onclick="window.location='/admin/<?= $urlCancel ?>'">Oops, no, totally not! Go Back! Cancel!</button>
+				</div>
 			</form>
 		</div>
 	<?
@@ -732,88 +738,111 @@ function AdminEditCategory($dataarray) {
 			-->
 		</script>
 		<form method="POST" action="/admin/categories_list" enctype="multipart/form-data">
-			<input method="hidden" name="function" value="save_category" style="display:none">
-			<input method="hidden" name="form_cid" value="<?= $dataarray['cid'] ?>" style="display:none">
-			<div class="AdminCategoryListContainer">
-				<div class="AdminCategoryListingEditHeader">
-					Edit Category Properties for "<?= $dataarray['category'] ?>" <font size="-2">Last edited <?= nicetime($dataarray['last_updated']) ?> (<?= $dataarray['last_updated'] ?>)</font>
+			<!-- these two used to be <input method="hidden" style="display:none">, a typo that CSS papered over for ten years -->
+			<input type="hidden" name="function" value="save_category">
+			<input type="hidden" name="form_cid" value="<?= $dataarray['cid'] ?>">
+			<section class="adminPanel">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Edit category "<?= $dataarray['category'] ?>"</h2>
+					<span class="adminPanelSubtitle" title="<?= $dataarray['last_updated'] ?>">Last edited <?= nicetime($dataarray['last_updated']) ?></span>
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Short Name:</div>
-				<div class="AdminCategoryListingAddValue">
-					<input type="text" name="form_category" size="20" value="<?= $dataarray['category']?>">
+				<div class="adminField">
+					<label for="edit_category_name">Short Name</label>
+					<input type="text" name="form_category" id="edit_category_name" value="<?= $dataarray['category']?>">
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Nice Description:</div>
-				<div class="AdminCategoryListingAddValue">
-					<input type="text" name="form_description" size="50" value="<?= $dataarray['description'] ?>">
+				<div class="adminField">
+					<label for="edit_category_description">Nice Description</label>
+					<input type="text" name="form_description" id="edit_category_description" value="<?= $dataarray['description'] ?>">
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">URL:</div>
-				<div class="AdminCategoryListingAddValue">
-					<input type="text" name="form_url" size="20" value="<?= $dataarray['url'] ?>" style="text-transform: lowercase">
+				<div class="adminField">
+					<label for="edit_category_url">URL</label>
+					<input type="text" name="form_url" id="edit_category_url" value="<?= $dataarray['url'] ?>" style="text-transform: lowercase" autocapitalize="none" autocorrect="off">
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">sample Names:</div>
-				<div class="AdminCategoryListingAddValue"><select name="force_display_names"><?= DisplayNamesOptionsDropDown($dataarray['cid'] ?? NULL) ?></select></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Stored Image:</div>
-				<div class="AdminCategoryListingShowImage"><img src="/i/category/<?= $dataarray['image_id'] ?>"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Image Name:</div>
-				<div class="AdminCategoryListItemURL"><?= $dataarray['image_filename'] ?></div>
-				<div class="AdminCategoryListingAddValue"><input name="filesToUpload[]" class="filesToUpload" size="40" id="1" type="file" multiple="" accept="image/png"></div>
-				<div class="AdminCategoryListItemURL">728x90 PNG</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem"></div>
-				<div class="clear"></div>
-
-    		<div class="AdminCategoryListingEditItem">Public</div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" id="published" name="published" class="regular-checkbox big-checkbox" <?= ($dataarray['published']?'CHECKED ':'') ?>/><label title="Publicly Displayed in Categories Listing" for="published"></label>
+				<div class="adminField">
+					<label for="edit_category_display_names">Sample Names</label>
+					<select name="force_display_names" id="edit_category_display_names"><?= DisplayNamesOptionsDropDown($dataarray['cid'] ?? NULL) ?></select>
 				</div>
-
-    		<div class="AdminCategoryListingEditItem">Highlighted (1024x680)</div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" id="is_highlighted" onclick="showHide();" name="is_highlighted" class="regular-checkbox big-checkbox" <?= ($dataarray['is_highlighted']?'CHECKED ':'') ?>/><label title="Highlighted in the Featured Carousel" for="is_highlighted"></label>
-					<input name="carousel_image" id="carousel_image" style="visibility: hidden;" class="filesToUpload" size="40" type="file" multiple="">
+				<div class="adminField">
+					<span class="adminFieldLabel">Stored Image</span>
+					<div class="adminImagePreview"><img src="/i/category/<?= $dataarray['image_id'] ?>" alt="<?= $dataarray['image_filename'] ?>"></div>
 				</div>
-				<div class="clear"></div>
-		<div class="clear"></div>
+				<div class="adminField">
+					<span class="adminFieldLabel">Replace Image</span>
+					<div>
+						<input name="filesToUpload[]" class="filesToUpload" id="1" type="file" multiple="" accept="image/png">
+						<span class="adminFieldHint">728x90 PNG. Now: <?= $dataarray['image_filename'] ?></span>
+					</div>
+				</div>
+				<div class="adminChecks">
+					<label class="adminCheck" title="Publicly Displayed in Categories Listing">
+						<input type="checkbox" id="published" name="published" <?= ($dataarray['published']?'CHECKED ':'') ?>>
+						Public
+					</label>
+					<label class="adminCheck" title="Highlighted in the Featured Carousel">
+						<input type="checkbox" id="is_highlighted" onclick="showHide();" name="is_highlighted" <?= ($dataarray['is_highlighted']?'CHECKED ':'') ?>>
+						Highlighted <span class="adminFieldHint">(1024x680 carousel image)</span>
+					</label>
+				</div>
+				<?
+					// the carousel upload box only shows for highlighted categories. The old page
+					// always started it hidden, even when the box was already checked, so you had
+					// to un-check and re-check to find it.
+					$carousel_upload_visibility = "hidden";
+					if ($dataarray['is_highlighted']) {
+						$carousel_upload_visibility = "visible";
+					}
+				?>
+				<div class="adminField">
+					<span class="adminFieldLabel">Carousel Image</span>
+					<div>
+						<input name="carousel_image" id="carousel_image" style="visibility: <?= $carousel_upload_visibility ?>;" class="filesToUpload" type="file" multiple="">
+					</div>
+				</div>
 				<? if (!isEmpty($dataarray['carousel_id'])) { ?>
-					<div class="AdminCategoryListingEditItem"><img border="1" src="/i/category/<?= $dataarray['carousel_id']; ?>"></div>
+					<div class="adminField">
+						<span class="adminFieldLabel">Current Carousel</span>
+						<div class="adminImagePreview"><img src="/i/category/<?= $dataarray['carousel_id']; ?>" alt="Carousel image"></div>
+					</div>
 				<? } ?>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddSubmit">
-					<input type="submit" value="Update Category">
-					<input type="button" name="Cancel" value="Cancel" onclick="window.location='/admin/categories_list'">
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Update Category</button>
+					<button type="button" class="adminButton" name="Cancel" onclick="window.location='/admin/categories_list'">Cancel</button>
 				</div>
-				<div class="clear"></div>
-			</div> <!-- AdminCategoryListContainer -->
+			</section>
 		</form>
 
 		<? AdminEditSubCategories($dataarray['cid']); ?>
 
 		<form method="POST" action="/admin/categories_list" enctype="multipart/form-data">
-			<input type="hidden" name="function" value="add_sub_category" style="display:none">
-			<input method="hidden" name="form_cid" value="<?= $dataarray['cid']; ?>" style="display:none">
-			<div class="AdminCategoryListingAddContainer">
-				<div class="AdminCategoryListingAddHeader">ADD NEW SUB-CATEGORY</div>
-				<div class="AdminCategoryListingAddItem">Sub-Category Name:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="form_category" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['form_category'] ?? '')))); ?>" size="20"></div>
-				<div class="AdminCategoryListingAddItem">URL:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" placeholder="Optional" name="form_url" value="<?= htmlspecialchars(trim(($_REQUEST['form_url'] ?? ''))); ?>" size="15" style="text-transform: lowercase"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">Description:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="form_description" value="<?= htmlspecialchars(trim(($_REQUEST['form_description'] ?? ''))); ?>" size="40"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">Sub-Category Logo:</div>
-				<div class="AdminCategoryListingAddValue"><input name="filesToUpload[]" class="filesToUpload" size="40" id="1" type="file" multiple=""></div>
-				<div class="AdminCategoryListItemURL">1024x680 PNG/JPG</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddSubmit"><input type="submit" value="Add Sub-Category"></div>
-				<div class="clear"></div>
-			</div> <!-- class="AdminCategoryListingAddContainer" -->
+			<input type="hidden" name="function" value="add_sub_category">
+			<input type="hidden" name="form_cid" value="<?= $dataarray['cid']; ?>">
+			<section class="adminPanel adminPanelAdd">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Add a sub-category to "<?= $dataarray['category'] ?>"</h2>
+				</div>
+				<div class="adminField">
+					<label for="new_subcategory_name">Sub-Category Name</label>
+					<input type="text" name="form_category" id="new_subcategory_name" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['form_category'] ?? '')))); ?>">
+				</div>
+				<div class="adminField">
+					<label for="new_subcategory_url">URL</label>
+					<input type="text" placeholder="Optional, made from the name" name="form_url" id="new_subcategory_url" value="<?= htmlspecialchars(trim(($_REQUEST['form_url'] ?? ''))); ?>" style="text-transform: lowercase" autocapitalize="none" autocorrect="off">
+				</div>
+				<div class="adminField">
+					<label for="new_subcategory_description">Description</label>
+					<input type="text" name="form_description" id="new_subcategory_description" value="<?= htmlspecialchars(trim(($_REQUEST['form_description'] ?? ''))); ?>">
+				</div>
+				<div class="adminField">
+					<span class="adminFieldLabel">Sub-Category Logo</span>
+					<div>
+						<input name="filesToUpload[]" class="filesToUpload" id="2" type="file" multiple="">
+						<span class="adminFieldHint">1024x680 PNG/JPG</span>
+					</div>
+				</div>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Add Sub-Category</button>
+				</div>
+			</section>
 		</form>
 	<?
 }
@@ -821,43 +850,42 @@ function AdminEditCategory($dataarray) {
 function AdminEditSubCategory($dataarray) {
 	?>
 		<form method="POST" action="/admin/categories_list" enctype="multipart/form-data">
-			<input method="hidden" name="function" value="save_subcategory" style="display:none">
-			<input method="hidden" name="form_subid" value="<?= $dataarray['subid'] ?>" style="display:none">
-			<input method="hidden" name="form_cid" value="<?= $dataarray['parent_cid'] ?>" style="display:none">
-			<div class="AdminCategoryListContainer">
-				<div class="AdminCategoryListingEditHeader">Edit Sub-Category Properties for "<?= $dataarray['subcategory'] ?>", child of "<?= $dataarray['category']; ?>"</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Short Name:</div>
-				<div class="AdminCategoryListingAddValue">
-					<input type="text" name="form_subcategory" size="20" value="<?= $dataarray['subcategory']?>">
+			<input type="hidden" name="function" value="save_subcategory">
+			<input type="hidden" name="form_subid" value="<?= $dataarray['subid'] ?>">
+			<input type="hidden" name="form_cid" value="<?= $dataarray['parent_cid'] ?>">
+			<section class="adminPanel">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Edit sub-category "<?= $dataarray['subcategory'] ?>"</h2>
+					<span class="adminPanelSubtitle">inside "<?= $dataarray['category']; ?>"</span>
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Nice Description:</div>
-				<div class="AdminCategoryListingAddValue">
-					<input type="text" name="form_description" size="50" value="<?= $dataarray['description'] ?>">
+				<div class="adminField">
+					<label for="edit_subcategory_name">Short Name</label>
+					<input type="text" name="form_subcategory" id="edit_subcategory_name" value="<?= $dataarray['subcategory']?>">
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">URL:</div>
-				<div class="AdminCategoryListingAddValue">
-					<input type="text" name="form_url" size="20" value="<?= $dataarray['url'] ?>" style="text-transform: lowercase">
+				<div class="adminField">
+					<label for="edit_subcategory_description">Nice Description</label>
+					<input type="text" name="form_description" id="edit_subcategory_description" value="<?= $dataarray['description'] ?>">
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Stored Image:</div>
-				<div class="AdminCategoryListingShowImage"><img src="/i/sample/<?= $dataarray['image_id'] ?>"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Image Name:</div>
-				<div class="AdminCategoryListItemURL"><?= $dataarray['image_filename'] ?></div>
-				<div class="AdminCategoryListingAddValue"><input name="filesToUpload[]" class="filesToUpload" size="40" id="1" type="file" multiple="" accept="image/png"></div>
-				<div class="AdminCategoryListItemURL">1024x680</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddSubmit">
-					<input type="submit" value="Update Category">
-					<input type="button" name="Cancel" value="Cancel" onclick="window.location='/admin/categories_list'">
+				<div class="adminField">
+					<label for="edit_subcategory_url">URL</label>
+					<input type="text" name="form_url" id="edit_subcategory_url" value="<?= $dataarray['url'] ?>" style="text-transform: lowercase" autocapitalize="none" autocorrect="off">
 				</div>
-				<div class="clear"></div>
-			</div> <!-- AdminCategoryListContainer -->
+				<div class="adminField">
+					<span class="adminFieldLabel">Stored Image</span>
+					<div class="adminImagePreview"><img src="/i/sample/<?= $dataarray['image_id'] ?>" alt="<?= $dataarray['image_filename'] ?>"></div>
+				</div>
+				<div class="adminField">
+					<span class="adminFieldLabel">Replace Image</span>
+					<div>
+						<input name="filesToUpload[]" class="filesToUpload" id="1" type="file" multiple="" accept="image/png">
+						<span class="adminFieldHint">1024x680. Now: <?= $dataarray['image_filename'] ?></span>
+					</div>
+				</div>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Update Sub-Category</button>
+					<button type="button" class="adminButton" name="Cancel" onclick="window.location='/admin/categories_list'">Cancel</button>
+				</div>
+			</section>
 		</form>
 	<?
 }
@@ -865,24 +893,25 @@ function AdminEditSubCategory($dataarray) {
 function AdminEditLocation($dataarray) {
 	?>
 		<form method="POST" action="/admin/locations_list" enctype="multipart/form-data">
-			<input method="hidden" name="function" value="save_location" style="display:none">
-			<input method="hidden" name="lid" value="<?= $dataarray['lid'] ?>" style="display:none">
-			<div class="AdminCategoryListContainer">
-				<div class="AdminCategoryListingEditHeader">
-					Rename Location "<?= $dataarray['city'] ?>, <?= StateCodeToName($dataarray['state']) ?>"
+			<input type="hidden" name="function" value="save_location">
+			<input type="hidden" name="lid" value="<?= $dataarray['lid'] ?>">
+			<section class="adminPanel">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Rename "<?= $dataarray['city'] ?>, <?= StateCodeToName($dataarray['state']) ?>"</h2>
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">City:</div>
-				<div class="AdminCategoryListingAddValue">
-					<input type="text" name="city" size="40" value="<?= $dataarray['city'] ?>">
+				<div class="adminField">
+					<label for="edit_location_city">City</label>
+					<input type="text" name="city" id="edit_location_city" value="<?= $dataarray['city'] ?>">
 				</div>
-				<div class="AdminCategoryListingAddValue"><select name="state"><?= StateOptionsDropDown($dataarray['state']) ?></select></div>
-				<div class="AdminCategoryListingAddSubmit">
-					<input type="submit" value="Update Location">
-					<input type="button" name="Cancel" value="Cancel" onclick="window.location='/admin/locations_list'">
+				<div class="adminField">
+					<label for="edit_location_state">State</label>
+					<select name="state" id="edit_location_state"><?= StateOptionsDropDown($dataarray['state']) ?></select>
 				</div>
-				<div class="clear"></div>
-			</div> <!-- AdminCategoryListContainer -->
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Update Location</button>
+					<button type="button" class="adminButton" name="Cancel" onclick="window.location='/admin/locations_list'">Cancel</button>
+				</div>
+			</section>
 		</form>
 	<?
 }
@@ -890,23 +919,21 @@ function AdminEditLocation($dataarray) {
 function AdminEditTag($dataarray) {
 	?>
 		<form method="POST" action="/admin/tags_list" enctype="multipart/form-data">
-			<input method="hidden" name="function" value="save_tag" style="display:none">
-			<input method="hidden" name="tid" value="<?= $dataarray['tid'] ?>" style="display:none">
-			<div class="AdminCategoryListContainer">
-				<div class="AdminCategoryListingEditHeader">
-					Edit Tag Name "<?= $dataarray['name'] ?>"
+			<input type="hidden" name="function" value="save_tag">
+			<input type="hidden" name="tid" value="<?= $dataarray['tid'] ?>">
+			<section class="adminPanel">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Edit tag "<?= $dataarray['name'] ?>"</h2>
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingEditItem">Tag Name:</div>
-				<div class="AdminCategoryListingAddValue">
-					<input type="text" name="name" size="40" value="<?= $dataarray['name'] ?>">
+				<div class="adminField">
+					<label for="edit_tag_name">Tag Name</label>
+					<input type="text" name="name" id="edit_tag_name" value="<?= $dataarray['name'] ?>">
 				</div>
-				<div class="AdminCategoryListingAddSubmit">
-					<input type="submit" value="Update Tag">
-					<input type="button" name="Cancel" value="Cancel" onclick="window.location='/admin/tags_list'">
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Update Tag</button>
+					<button type="button" class="adminButton" name="Cancel" onclick="window.location='/admin/tags_list'">Cancel</button>
 				</div>
-				<div class="clear"></div>
-			</div> <!-- AdminCategoryListContainer -->
+			</section>
 		</form>
 	<?
 }
@@ -984,85 +1011,87 @@ function AdminsampleFormNew() {
 			});
     });
   //]]></script>
-			<form method="POST" action="/admin/samples/add_new" enctype="multipart/form-data" id="irevform">
+		<form method="POST" action="/admin/samples/add_new" enctype="multipart/form-data" id="irevform">
 			<input type="hidden" name="function" value="add_new">
 			<input type="hidden" name="formpage" value="1">
 			<input type="hidden" value="irevform" name="<?= ini_get("session.upload_progress.name"); ?>">
-			<div class="AdminCategoryListingAddContainer">
-				<div class="AdminCategoryListingAddHeader">ADD NEW SAMPLE</div>
-				<div class="AdminCategoryListingAddItem">Sample Real Name</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="name" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['name'] ?? '')))); ?>" size="50"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">Sample's Obfuscated Display Name</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="display_name" placeholder="Optional (auto-generated)" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['display_name'] ?? '')))); ?>" size="50"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">One-Line Summary,<br> Header, Slug</div>
-				<div class="AdminCategoryListingAddTextBox"><textarea rows="2" cols="50" name="slug" wrap="virtual"><?= MakeCase(htmlspecialchars(trim(($_REQUEST['slug'] ?? '')))); ?></textarea></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">&nbsp;</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">&nbsp;</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem"><label for="is_active">Sample is Active</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" name="is_active" id="is_active" class="regular-checkbox big-checkbox" <?= /* I want default first page to be checked */ (($_REQUEST['is_active'] ?? '') || !(($_REQUEST['formpage'] ?? '')))? 'CHECKED ' : ''; ?>/><label title="Active, available for gigs" for="is_active"></label>
+			<section class="adminPanel adminPanelAdd">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Add a new sample</h2>
 				</div>
-				<div class="AdminCategoryListingAddItem"><label for="is_searchable">Sample is Searchable</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" name="is_searchable" id="is_searchable" class="regular-checkbox big-checkbox" <?= /* I want default first page to be checked */ (($_REQUEST['is_searchable'] ?? '') || !(($_REQUEST['formpage'] ?? '')))? 'CHECKED ' : ''; ?>/><label title="Sample listed in search results" for="is_searchable"></label>
+				<div class="adminField">
+					<label for="new_sample_name">Real Name</label>
+					<input type="text" name="name" id="new_sample_name" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['name'] ?? '')))); ?>">
 				</div>
-				<div class="AdminCategoryListingAddItem"><label for="is_highlighted">Highlighted on Home Page<br>and Category Listings</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" name="is_highlighted" id="is_highlighted" class="regular-checkbox big-checkbox" <?= /* I want default first page to be unchecked */ (($_REQUEST['is_highlighted'] ?? ''))? 'CHECKED ' : ''; ?>/><label title="Sample is highlighted on Home Page and Category Listings" for="is_highlighted"></label>
+				<div class="adminField">
+					<label for="new_sample_display_name">Display Name</label>
+					<div>
+						<input type="text" name="display_name" id="new_sample_display_name" placeholder="Optional (auto-generated)" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['display_name'] ?? '')))); ?>">
+						<span class="adminFieldHint">The obfuscated name, for the white-label trick</span>
+					</div>
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">Bio</div>
-				<div class="AdminCategoryListingAddTextBox"><textarea style="resize: both;" rows="8" cols="85" name="bio" wrap="virtual"><?= htmlspecialchars(trim(($_REQUEST['bio'] ?? ''))); ?></textarea></div>
-				<div class="clear">&nbsp;</div>
-
-				<div class="AdminCategoryListingAddItem">
-					<label for="Categories">Website Categories</label>
+				<div class="adminField">
+					<label for="new_sample_slug">One-Line Summary</label>
+					<textarea rows="2" name="slug" id="new_sample_slug" wrap="virtual"><?= MakeCase(htmlspecialchars(trim(($_REQUEST['slug'] ?? '')))); ?></textarea>
 				</div>
-				<div class="AdminCategoryListingAddDropDown">
-					<select id="Categories" multiple="multiple" name="categories[]" title="Categories" class="sminit">
-						<?= AdminSelectCategories(); ?>
-					</select>
+				<div class="adminChecks">
+					<label class="adminCheck" title="Active, available for gigs">
+						<input type="checkbox" name="is_active" id="is_active" <?= /* I want default first page to be checked */ (($_REQUEST['is_active'] ?? '') || !(($_REQUEST['formpage'] ?? '')))? 'CHECKED ' : ''; ?>>
+						Active
+					</label>
+					<label class="adminCheck" title="Sample listed in search results">
+						<input type="checkbox" name="is_searchable" id="is_searchable" <?= /* I want default first page to be checked */ (($_REQUEST['is_searchable'] ?? '') || !(($_REQUEST['formpage'] ?? '')))? 'CHECKED ' : ''; ?>>
+						Searchable
+					</label>
+					<label class="adminCheck" title="Sample is highlighted on Home Page and Category Listings">
+						<input type="checkbox" name="is_highlighted" id="is_highlighted" <?= /* I want default first page to be unchecked */ (($_REQUEST['is_highlighted'] ?? ''))? 'CHECKED ' : ''; ?>>
+						Featured <span class="adminFieldHint">(home page and category lists)</span>
+					</label>
 				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">
+				<div class="adminField">
+					<label for="new_sample_bio">Bio</label>
+					<textarea rows="8" name="bio" id="new_sample_bio" wrap="virtual"><?= htmlspecialchars(trim(($_REQUEST['bio'] ?? ''))); ?></textarea>
+				</div>
+				<div class="adminField">
+					<label for="Categories">Categories</label>
+					<div class="adminMultiSelect">
+						<select id="Categories" multiple="multiple" name="categories[]" title="Add a category..." class="sminit">
+							<?= AdminSelectCategories(); ?>
+						</select>
+					</div>
+				</div>
+				<div class="adminField">
 					<label for="Tags">Tags</label>
+					<div class="adminMultiSelect">
+						<select id="Tags" multiple="multiple" name="tags[]" title="Add a tag..." class="sminit">
+							<?= AdminSelectTags(); ?>
+						</select>
+					</div>
 				</div>
-				<div class="AdminCategoryListingAddDropDown">
-					<select id="Tags" multiple="multiple" name="tags[]" title="Tags" class="sminit">
-						<?= AdminSelectTags(); ?>
-					</select>
+				<div class="adminField">
+					<label for="Locations">Locations</label>
+					<div class="adminMultiSelect">
+						<select id="Locations" multiple="multiple" name="locations[]" title="Add a location..." class="sminit">
+							<?= AdminSelectLocations(); ?>
+						</select>
+					</div>
 				</div>
-				<div class="AdminCategoryListingAddItem">
-					<label for="Locations">Available Locations</label>
+				<div class="adminField">
+					<label for="1">Photos and Videos</label>
+					<div>
+						<div id="file_container"><input name="filesToUpload[]" class="filesToUpload" id="1" type="file" multiple="" onchange="makeFileList();" /></div>
+						<span class="adminFieldHint">Big phone photos are fine: they get resized (and turned upright) for the web site.</span>
+						<ul id="fileList" class="adminFileList"></ul>
+					</div>
 				</div>
-				<div class="AdminCategoryListingAddDropDown">
-					<select id="Locations" multiple="multiple" name="locations[]" title="Locations" class="sminit">
-						<?= AdminSelectLocations(); ?>
-					</select>
+				<div class="adminFormButtons">
+					<button type="submit" class="adminButton adminButtonPrimary">Save New Sample</button>
 				</div>
-				<div class="AdminCategoryListingAddItem">Select all photo and video files to upload for this project sample.</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem"><font size="-1">High resolution photos and HQ videos will be automatically processed for the web site.</font></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddFiles">
-					<div id="file_container"><input name="filesToUpload[]" class="filesToUpload" id="1" type="file" multiple="" onchange="makeFileList();" /></div>
-				</div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingValue"><ul id="fileList"></ul></div>
-				<div class="clear"></div>
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddSubmit"><input type="submit" value="Save New Sample"></div>
 				<div id="bar_blank">
 					<div id="status"></div>
 					<div id="bar_color"></div>
 				</div>
-				<div class="clear"></div>
-			</div> <!-- class="AdminCategoryListingAddContainer" -->
+			</section>
 		</form>
 		<script type="text/javascript" src="/templates/js/upload.js"></script>
 	<?
@@ -1164,7 +1193,9 @@ function AdminsampleFormSingle($sampleinfo) {
 		  setheight(images, getheight(images, width));
 		}
 		function run(max_height) {
-			var size = window.innerWidth - 50;
+			// pack the photos into the width of their panel, not the whole window:
+			// the window guess made the last photo of each row hang off the edge on a phone
+			var size = $('.AdminImagesPreviewContainer').first().width() - 4;
 			var n = 0;
 			var images = $('img');
 			w: while (images.length > 0) {
@@ -1192,129 +1223,120 @@ function AdminsampleFormSingle($sampleinfo) {
 			<input type="hidden" name="oid" value="<?= $sampleinfo['oid']; ?>">
 			<input type="hidden" name="function" value="edit">
 			<input type="hidden" value="irevform" name="<?= ini_get("session.upload_progress.name"); ?>">
-			<div class="AdminsampleContainer">
-				<div class="AdminSaveButtonContainer">
-					<div class="AdminSaveLabel"><label for="save_me">Save Updates</label></div>
-    			<div class="AdminCategoryListingCheckBox">
-						<input type="submit" name="executeButton" value="update" class="AdminSaveButton" alt="Update <?= $sampleinfo['name']; ?>" id="save_me" />
+			<section class="adminPanel">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle"><a href="<?= CurServerUrl(); ?>sample/<?= $sampleinfo['url']; ?>" title="See the public page"><?= $sampleinfo['name'] ?></a></h2>
+					<span class="adminPanelSubtitle">Last updated <?= nicetime($sampleinfo['last_updated']) ?></span>
+				</div>
+				<!--
+					Save comes before Delete on purpose: pressing Enter in a text box
+					"clicks" the first submit button in the form, and that had better
+					not be the one that deletes things.
+				-->
+				<div class="adminFormButtons">
+					<button type="submit" name="executeButton" value="update" class="adminButton adminButtonPrimary" title="Update <?= $sampleinfo['name']; ?>">Save Updates</button>
+					<button type="submit" name="executeButton" value="delete" class="adminButton adminButtonDanger" title="Delete <?= $sampleinfo['name']; ?> (asks first)">Delete Sample</button>
+				</div>
+				<div class="adminChecks">
+					<label class="adminCheck" title="sample is Active">
+						<input type="checkbox" id="is_active" name="is_active" <?= ($sampleinfo['is_active']?'CHECKED ':'') ?>>
+						Active
+					</label>
+					<label class="adminCheck" title="Can be found in Search">
+						<input type="checkbox" id="is_searchable" name="is_searchable" <?= ($sampleinfo['is_searchable']?'CHECKED ':'') ?>>
+						Searchable
+					</label>
+					<label class="adminCheck" title="Highlighted as a Featured sample">
+						<input type="checkbox" id="is_highlighted" name="is_highlighted" <?= ($sampleinfo['is_highlighted']?'CHECKED ':'') ?>>
+						Featured
+					</label>
+					<label class="adminCheck" title="Enforce hiding the sample's Full Name">
+						<input type="checkbox" id="use_display_name" name="use_display_name" <?= ($sampleinfo['use_display_name']?'CHECKED ':'') ?>>
+						Use Display Name
+					</label>
+				</div>
+				<div class="adminField">
+					<label for="edit_sample_name">Real Name</label>
+					<input type="text" name="name" id="edit_sample_name" value="<?= $sampleinfo['name']; ?>">
+				</div>
+				<div class="adminField">
+					<label for="edit_sample_display_name">Display Name</label>
+					<input type="text" name="display_name" id="edit_sample_display_name" value="<?= $sampleinfo['display_name']; ?>">
+				</div>
+				<div class="adminField">
+					<label for="edit_sample_slug">Summary / Slug</label>
+					<textarea rows="2" name="slug" id="edit_sample_slug" wrap="virtual"><?= $sampleinfo['slug']; ?></textarea>
+				</div>
+				<div class="adminField">
+					<label for="edit_sample_bio">Bio</label>
+					<textarea rows="8" name="bio" id="edit_sample_bio" wrap="virtual"><?= $sampleinfo['bio']; ?></textarea>
+				</div>
+				<div class="adminField">
+					<label for="edit_sample_url">URL</label>
+					<input type="text" name="form_url" id="edit_sample_url" value="<?= $sampleinfo['url']; ?>" autocapitalize="none" autocorrect="off">
+				</div>
+				<div class="adminField">
+					<label for="edit_sample_alt_url">Alt-URL</label>
+					<input type="text" name="alt_url" id="edit_sample_alt_url" value="<?= $sampleinfo['alt_url']; ?>" autocapitalize="none" autocorrect="off">
+				</div>
+				<div class="adminField">
+					<label for="Categories">Categories</label>
+					<div class="adminMultiSelect">
+						<select id="Categories" multiple="multiple" name="categories[]" title="Add a category..." class="sminit">
+							<?= AdminSelectCategories($sampleinfo['oid']); ?>
+						</select>
 					</div>
 				</div>
-				<div class="AdminsampleEditHeader">
-					<B><a href="<?= CurServerUrl(); ?>sample/<?= $sampleinfo['url']; ?>"</a><?= $sampleinfo['name'] ?></a></B>
-				</div>
-				<div class="AdminsampleLastUpdateHeader">
-					Last updated <?= nicetime($sampleinfo['last_updated']) ?>
-				</div>
-				<div class="clear"></div>
-				<div class="AdminsampleCheckboxLabel"><label for="is_active">Active</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" id="is_active" name="is_active" class="regular-checkbox big-checkbox" <?= ($sampleinfo['is_active']?'CHECKED ':'') ?>/><label title="sample is Active" for="is_active"></label>
-				</div>
-				<div class="AdminsampleCheckboxLabel"><label for="is_searchable">Searchable</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" id="is_searchable" name="is_searchable" class="regular-checkbox big-checkbox" <?= ($sampleinfo['is_searchable']?'CHECKED ':'') ?>/><label title="Can be found in Search" for="is_searchable"></label>
-				</div>
-				<div class="AdminsampleCheckboxLabel"><label for="is_highlighted">Featured</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" id="is_highlighted" name="is_highlighted" class="regular-checkbox big-checkbox" <?= ($sampleinfo['is_highlighted']?'CHECKED ':'') ?>/><label title="Highlighted as a Featured sample" for="is_highlighted"></label>
-				</div>
-				<div class="AdminsampleCheckboxLabel"><label for="use_display_name">Obfuscate Name</label></div>
-    		<div class="AdminCategoryListingCheckBox">
-					<input type="checkbox" id="use_display_name" name="use_display_name" class="regular-checkbox big-checkbox" <?= ($sampleinfo['use_display_name']?'CHECKED ':'') ?>/><label title="Enforce hiding the sample's Full Name" for="use_display_name"></label>
-				</div>
-				<div class="AdminSaveButtonContainer">
-					<div class="AdminsampleCheckboxLabel"><label for="delete_me">Delete sample</label></div>
-    			<div class="AdminCategoryListingCheckBox">
-						<input type="submit" class="AdminDeleteButton" name="executeButton" value="delete" alt="Delete <?= $sampleinfo['name']; ?>" id="delete_me" style="width: 30px; height: 30px;" /><label title="Delete <?= $sampleinfo['name']; ?>" for="delete_me"></label>
-					</div>
-				</div>
-				<div class="clear"></div>
-				<div class="AdminsampleLabel">Project Sample Real Name:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="name" value="<?= $sampleinfo['name']; ?>" size="50"></div>
-				<div class="clear"></div>
-				<div class="AdminsampleLabel">Obfuscated Display Name:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="display_name" value="<?= $sampleinfo['display_name']; ?>" size="50"></div>
-				<div class="clear"></div>
-				<div class="AdminsampleLabel">Summary/Header/Slug:</div>
-				<div class="AdminCategoryListingAddTextBox"><textarea rows="2" cols="50" name="slug" wrap="virtual"><?= $sampleinfo['slug']; ?></textarea></div>
-				<div class="clear">&nbsp;</div>
-				<div class="AdminsampleLabel">Bio:</div>
-				<div class="AdminCategoryListingAddTextBox"><textarea style="resize: both;" rows="8" cols="65" name="bio" wrap="virtual"><?= $sampleinfo['bio']; ?></textarea></div>
-				<div class="clear">&nbsp;</div>
-
-				<div class="AdminsampleLabel">URL:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="form_url" value="<?= $sampleinfo['url']; ?>" size="30"></div>
-				<div class="AdminsampleLabel">Alt-URL:</div>
-				<div class="AdminCategoryListingAddValue"><input type="text" name="alt_url" value="<?= $sampleinfo['alt_url']; ?>" size="30"></div>
-				<div class="clear">&nbsp;</div>
-
-				<div class="AdminCategoryListingAddItem">
-					<label for="Categories">Website Categories</label>
-				</div>
-				<div class="AdminCategoryListingAddDropDown">
-					<select id="Categories" multiple="multiple" name="categories[]" title="Categories" class="sminit">
-						<?= AdminSelectCategories($sampleinfo['oid']); ?>
-					</select>
-				</div>
-				<div class="clear"></div>
 
 				<? AdminSelectSubCategories($sampleinfo); ?>
 
-				<div class="clear"></div>
-				<div class="AdminCategoryListingAddItem">
+				<div class="adminField">
 					<label for="Tags">Tags</label>
-				</div>
-				<div class="AdminCategoryListingAddDropDown">
-					<select id="Tags" multiple="multiple" name="tags[]" title="Tags" class="sminit">
-						<?= AdminSelectTags($sampleinfo['oid']); ?>
-					</select>
-				</div>
-				<div class="AdminCategoryListingAddItem">
-					<label for="Locations">Available Locations</label>
-				</div>
-				<div class="AdminCategoryListingAddDropDown">
-					<select id="Locations" multiple="multiple" name="locations[]" title="Locations" class="sminit">
-						<?= AdminSelectLocations($sampleinfo['oid']); ?>
-					</select>
-				</div>
-				<div class="clear"></div>
-				<div class="AdminSaveButtonContainer">
-					<div class="AdminSaveLabel"><label for="save_me">Save Updates</label></div>
-    			<div class="AdminCategoryListingCheckBox">
-						<input type="submit" name="executeButton" value="update" class="AdminSaveButton" alt="Update <?= $sampleinfo['name']; ?>" id="save_me" />
+					<div class="adminMultiSelect">
+						<select id="Tags" multiple="multiple" name="tags[]" title="Add a tag..." class="sminit">
+							<?= AdminSelectTags($sampleinfo['oid']); ?>
+						</select>
 					</div>
 				</div>
-				<div class="clear"></div>
-				<div class="AdminsampleEditSubHeader">Media for <?= $sampleinfo['name']; ?>
-				<div class="clear"></div>
-				</div>
-					<div class="AdminCategoryListingAddFilesSingle">
-						<div id="file_container"><input name="filesToUpload[]" value="Upload Category Graphic" class="filesToUpload" id="1" type="file" multiple="" onchange="makeFileList();" /></div>
-						<div class="AdminCategoryListingValue"><ul id="fileList"></ul></div>
+				<div class="adminField">
+					<label for="Locations">Locations</label>
+					<div class="adminMultiSelect">
+						<select id="Locations" multiple="multiple" name="locations[]" title="Add a location..." class="sminit">
+							<?= AdminSelectLocations($sampleinfo['oid']); ?>
+						</select>
 					</div>
-				<div class="clear"></div>
+				</div>
+				<div class="adminFormButtons">
+					<button type="submit" name="executeButton" value="update" class="adminButton adminButtonPrimary">Save Updates</button>
+				</div>
+			</section>
+
+			<section class="adminPanel">
+				<div class="adminPanelHeader">
+					<h2 class="adminPanelTitle">Media for <?= $sampleinfo['name']; ?></h2>
+				</div>
+				<div class="adminField">
+					<label for="1">Add Photos and Videos</label>
+					<div>
+						<div id="file_container"><input name="filesToUpload[]" class="filesToUpload" id="1" type="file" multiple="" onchange="makeFileList();" /></div>
+						<ul id="fileList" class="adminFileList"></ul>
+					</div>
+				</div>
 				<div id="bar_blank">
 					<div id="status"></div>
 					<div id="bar_color"></div>
 				</div>
 				<script type="text/javascript" src="/templates/js/upload.js"></script>
-				<div class="clear"></div>
 				<div class="AdminImagesPreviewContainer">
 					<?= ShowPhotoArray($sampleinfo['media']); ?>
 				</div>
-				<div class="clear"></div>
 				<div class="AdminImagesPreviewContainer">
 					<?= PrepareVideoPlayer($sampleinfo); ?>
 				</div>
-				<div class="clear"></div>
-				<div class="AdminSaveButtonContainer">
-					<div class="AdminSaveLabel"><label for="save_me">Save Updates</label></div>
-    			<div class="AdminCategoryListingCheckBox">
-						<input type="submit" name="executeButton" value="update" class="AdminSaveButton" alt="Update <?= $sampleinfo['name']; ?>" id="save_me" />
-					</div>
+				<div class="adminFormButtons">
+					<button type="submit" name="executeButton" value="update" class="adminButton adminButtonPrimary">Save Updates</button>
 				</div>
-				<div class="clear"></div>
-			</div>
+			</section>
 		</form>
 
 	<?
