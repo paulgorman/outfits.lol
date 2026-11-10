@@ -2712,7 +2712,7 @@ function AdminListLocations() {
 	global $conn;
 	$query = "SELECT `lid`, `city`, `state` FROM `locations` ORDER BY `state`, `city`";
 	$result = mysqli_query($conn,$query);
-	$locationslist = array();
+	$locations = array(); // zero locations is still a list, PHP 8, calm down
 	while ($row = mysqli_fetch_assoc($result)) {
 		$locations[] = array(
 			"lid" => $row['lid'],
@@ -2768,7 +2768,7 @@ function AdminListTags() {
 	global $conn;
 	$query = "SELECT `tid`, `name` FROM `tags`";
 	$result = mysqli_query($conn,$query);
-	$categorieslist = array();
+	$tags = array(); // no tags yet? count() on nothing is a fatal error in PHP 8
 	while ($row = mysqli_fetch_assoc($result)) {
 		$tags[] = array(
 			"tid" => $row['tid'],

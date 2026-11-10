@@ -14,3 +14,4 @@ templates/redactor-old
 *.tgz
 vendor/
 .transformers-cache/
+.claude-admin-login
