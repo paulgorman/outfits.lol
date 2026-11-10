@@ -1754,11 +1754,673 @@ function AdminsampleAddNew() {
 			} else {
 				echo "<div class='AdminError'>No media was saved. Please add a photo and/or video now.</div>";
 			}
+			// Anything left blank on the form? Let CLIP take a crack at it,
+			// now that the photos are on disk, upright, and resized.
+			// (Only HERE, for brand new samples. Photos added on the edit page
+			// never run CLIP: that's refinement time.)
+			if ($filecount >= 1) {
+				FillInBlankSampleFieldsFromClip($oid);
+			}
 			// regardless of media, we did save SOMETHING, so sets see it.
 			AdminsampleEditSingle($oid);
 		}
 	}
 }
+
+
+/*
+ * ======================================================================
+ *  CLIP FILLS IN THE BLANKS ("I don't wanna type no more")
+ * ======================================================================
+ *
+ * The old talent-agency flow: boss sees a band, snaps photos, TYPES the
+ * band's name and why he likes them, saves, the sales minions flesh it
+ * out tomorrow. Here, CLIP is the boss AND the minions: upload photos of
+ * one thing, leave the rest blank, and CLIP's guesses get written in.
+ * Usually wrong-ish. Editing words down beats staring at an empty box.
+ *
+ * CLIP is a one-shot ("zero-shot") picker: hand it a photo and a menu of
+ * words, it scores how well each word fits the photo. It's levenshtein()
+ * for pictures. The menus come from YOUR database, so it only ever picks
+ * things you actually own the words for (no hi-vis vests):
+ *
+ *   What is it?      your categories (the nouns: Boots, Skirts, Hoodies),
+ *                    then the sub-categories inside the one it picked
+ *   Tags             your tags (the adjectives: witchy, twirly, fancy)
+ *   Color, pattern,  built-in describing words, see GetClipDescribingWordMenus().
+ *   condition        They make the name and summary read like a person wrote them.
+ *
+ * Several photos are of ONE thing (Presence's promise), so every photo
+ * gets asked, and each word's scores are averaged across the photos.
+ *
+ * THE RULE: fill in what's EMPTY, never overwrite what Presence entered.
+ *   name            only if it still starts with "Mystery Thing" (the stand-in
+ *                   the upload page uses when the name is left blank)
+ *   summary, bio    only if blank
+ *   categories      only if there are none. If you DID pick some, CLIP only
+ *                   chooses between YOUR picks (for naming it, and for which
+ *                   category's sub-categories to look in)
+ *   sub-categories  only if there are none, and only inside that category
+ *   tags            only if there are none
+ * "Empty" is read from the database, so running it twice is harmless, and
+ * `php offline-classify.php --mysteries` can be a cron job that fixes any
+ * upload where CLIP fell over.
+ *
+ * Where things live:
+ *   offline-classify.php          the command-line script that loads CLIP. Run
+ *                                 it by hand, from cron, or from the upload page.
+ *   RunOfflineClassifyOnSample()  how the upload page runs it: as its OWN
+ *                                 process, because CLIP wants ~550MB and web
+ *                                 PHP gets 256MB. Takes ~3 seconds; the
+ *                                 "Saving..." bar covers it.
+ * Photos added to an EXISTING sample never run CLIP. That's refinement
+ * time, and nobody wants a robot second-guessing them then.
+ */
+
+
+/*
+ * GetMysteryThingNamePrefix: the start of the stand-in name a new sample gets
+ * when its name is left blank. CLIP replaces any name that starts with this.
+ */
+function GetMysteryThingNamePrefix() {
+	return "Mystery Thing ";
+}
+
+
+/*
+ * GetClipDescribingWordMenus: the built-in menus. These aren't in the
+ * database because they're for the words in the name and summary
+ * ("Purple tulle skirts, striped, worn-in"), not for sorting the closet.
+ * Thesaurus away. Words in one menu compete with each other, so "navy blue"
+ * and "blue" split the vote. That's fine.
+ */
+function GetClipDescribingWordMenus() {
+	return array(
+		'color' => array(
+			'black', 'white', 'gray', 'blue', 'navy blue', 'light blue',
+			'green', 'olive green', 'brown', 'tan', 'red', 'burgundy',
+			'pink', 'purple', 'yellow', 'orange', 'teal', 'multicolored',
+		),
+		'pattern' => array(
+			'solid color', 'striped', 'plaid', 'denim', 'polka dot',
+			'graphic print', 'tie-dye', 'sequined', 'lace', 'shiny',
+		),
+		'condition' => array(
+			'brand new', 'worn-in', 'faded', 'ripped', 'dressy', 'casual',
+		),
+	);
+}
+
+
+/*
+ * GetClipTuningKnobs: the numbers to fiddle with when CLIP picks too many
+ * tags, or too few.
+ */
+function GetClipTuningKnobs() {
+	return array(
+		// at most this many tags get picked for a sample
+		'most_tags_to_pick' => 3,
+
+		// A tag only gets picked if CLIP likes it at least this many times more
+		// than a coin flip would. With 10 tags a coin flip is 10% each, so 2
+		// means "20% or better". This also keeps a tiny tag list honest: with
+		// one tag, CLIP is 100% sure of it every time, which means nothing.
+		'tag_must_beat_a_coin_flip_by' => 2,
+
+		// how many guesses per menu get listed in the bio
+		'guesses_to_list_in_the_bio' => 3,
+
+		// CLIP learned from photo captions off the internet, so it likes
+		// "a photo of purple clothing" way more than just "purple".
+		// The %s is where the menu word goes.
+		'caption_for_what_it_is' => 'a photo of %s',
+		'caption_for_describing_words' => 'a photo of %s clothing',
+	);
+}
+
+
+/*
+ * SortGuessesHighestScoreFirst: usort() wants a function to compare two
+ * guesses. Here it is, with a name. Bigger score goes first.
+ */
+function SortGuessesHighestScoreFirst($first_guess, $second_guess) {
+	if ($first_guess['score'] == $second_guess['score']) {
+		return 0;
+	}
+	if ($first_guess['score'] > $second_guess['score']) {
+		return -1;
+	}
+	return 1;
+}
+
+
+/*
+ * AskClipToPickFromOneMenu: the actual magic. Shows CLIP every photo with
+ * one menu of words, averages each word's score across the photos, and
+ * returns EVERY word, best first:
+ *   [ ['id' => 7, 'label' => 'boots', 'score' => 0.41], ['id' => 3, ...], ... ]
+ * $menu is id => word: a category id => category name, or for the built-in
+ * menus just 0, 1, 2 => word. The ids ride along so a winning word can be
+ * saved as a real category or tag.
+ * $clip_classifier is the loaded CLIP pipeline (see offline-classify.php).
+ */
+function AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $menu, $caption_template) {
+	if (count($menu) == 0 || count($photo_paths) == 0) {
+		return array();
+	}
+
+	// "boots" becomes "a photo of boots". Remember which id each caption came from.
+	$id_for_each_caption = array();
+	foreach ($menu as $menu_id => $menu_word) {
+		$caption = sprintf($caption_template, strtolower($menu_word));
+		$id_for_each_caption[$caption] = $menu_id;
+	}
+	$captions = array_keys($id_for_each_caption);
+
+	// add up each caption's score across all the photos
+	$score_total_for_each_id = array();
+	foreach ($menu as $menu_id => $menu_word) {
+		$score_total_for_each_id[$menu_id] = 0;
+	}
+
+	foreach ($photo_paths as $photo_path) {
+		// One line. Everything else in this file is bookkeeping.
+		$every_guess_for_this_photo = $clip_classifier($photo_path, $captions);
+
+		foreach ($every_guess_for_this_photo as $single_guess) {
+			if (isset($id_for_each_caption[$single_guess['label']])) {
+				$menu_id = $id_for_each_caption[$single_guess['label']];
+				$score_total_for_each_id[$menu_id] += $single_guess['score'];
+			}
+		}
+	}
+
+	// totals become averages, then best first
+	$how_many_photos = count($photo_paths);
+	$every_guess = array();
+	foreach ($score_total_for_each_id as $menu_id => $score_total) {
+		$every_guess[] = array(
+			'id' => $menu_id,
+			'label' => $menu[$menu_id],
+			'score' => round($score_total / $how_many_photos, 3),
+		);
+	}
+	usort($every_guess, 'SortGuessesHighestScoreFirst');
+
+	return $every_guess;
+}
+
+
+/*
+ * GetEveryCategoryForClip / GetSubcategoriesForClip / GetEveryTagForClip:
+ * the database menus, as id => name.
+ */
+function GetEveryCategoryForClip() {
+	global $conn;
+	$every_category = array();
+	$category_rows = mysqli_query($conn,
+		"SELECT `cid`, `category`
+		 FROM `categories`
+		 ORDER BY `category`"
+	);
+	while ($category_row = mysqli_fetch_assoc($category_rows)) {
+		$every_category[$category_row['cid']] = $category_row['category'];
+	}
+	return $every_category;
+}
+
+function GetSubcategoriesForClip($category_id) {
+	global $conn;
+	$subcategories_in_this_category = array();
+	$subcategory_query = $conn->prepare(
+		"SELECT `subid`, `subcategory`
+		 FROM `subcategories`
+		 WHERE `parent_cid` = ?
+		 ORDER BY `subcategory`"
+	);
+	$subcategory_query->bind_param("i", $category_id);
+	$subcategory_query->execute();
+	$subcategory_rows = $subcategory_query->get_result();
+	while ($subcategory_row = $subcategory_rows->fetch_assoc()) {
+		$subcategories_in_this_category[$subcategory_row['subid']] = $subcategory_row['subcategory'];
+	}
+	$subcategory_query->close();
+	return $subcategories_in_this_category;
+}
+
+function GetEveryTagForClip() {
+	global $conn;
+	$every_tag = array();
+	$tag_rows = mysqli_query($conn,
+		"SELECT `tid`, `name`
+		 FROM `tags`
+		 ORDER BY `name`"
+	);
+	while ($tag_row = mysqli_fetch_assoc($tag_rows)) {
+		$every_tag[$tag_row['tid']] = $tag_row['name'];
+	}
+	return $every_tag;
+}
+
+
+/*
+ * GetSampleFactsForClip: everything CLIP needs to know about one sample:
+ * what's already filled in (so it leaves that alone), what Presence picked
+ * (so it listens to that), and where the photos are.
+ * The photos are the resized web copies: already turned upright by their
+ * EXIF Orientation, and small, so CLIP reads them fast. Videos are skipped.
+ */
+function GetSampleFactsForClip($oid) {
+	global $conn;
+	global $dirlocation;
+
+	$sample_id = (int)$oid;
+
+	$sample_query = $conn->prepare(
+		"SELECT `oid`, `name`, `slug`, `bio`
+		 FROM `samples`
+		 WHERE `oid` = ?"
+	);
+	$sample_query->bind_param("i", $sample_id);
+	$sample_query->execute();
+	$sample_facts = $sample_query->get_result()->fetch_assoc();
+	$sample_query->close();
+
+	if ($sample_facts === NULL) {
+		return NULL;
+	}
+
+	// the picked categories / sub-categories / tags, and the photos, each a plain list
+	$list_queries = array(
+		'picked_category_ids' => "SELECT `cid` AS `id` FROM `samplecategories` WHERE `oid` = ?",
+		'picked_subcategory_ids' => "SELECT `subid` AS `id` FROM `samplesubcategories` WHERE `oid` = ?",
+		'picked_tag_ids' => "SELECT `tid` AS `id` FROM `sampletags` WHERE `oid` = ?",
+		'photo_filenames' => "SELECT `filename` AS `id` FROM `media` WHERE `oid` = ? AND `filetype` IN ('jpg', 'png')",
+	);
+	foreach ($list_queries as $fact_name => $list_sql) {
+		$sample_facts[$fact_name] = array();
+		$list_query = $conn->prepare($list_sql);
+		$list_query->bind_param("i", $sample_id);
+		$list_query->execute();
+		$list_rows = $list_query->get_result();
+		while ($list_row = $list_rows->fetch_assoc()) {
+			$sample_facts[$fact_name][] = $list_row['id'];
+		}
+		$list_query->close();
+	}
+
+	$sample_facts['photo_paths'] = array();
+	foreach ($sample_facts['photo_filenames'] as $photo_filename) {
+		$sample_facts['photo_paths'][] = "$dirlocation/i/sample/$photo_filename";
+	}
+
+	return $sample_facts;
+}
+
+
+/*
+ * GetBlankSampleFactsForPhotos: pretend facts for "just guess at these
+ * photo files" (offline-classify.php photo.jpg): nothing filled in, nothing
+ * picked, so CLIP guesses everything.
+ */
+function GetBlankSampleFactsForPhotos($photo_paths) {
+	return array(
+		'oid' => 0,
+		'name' => GetMysteryThingNamePrefix(),
+		'slug' => '',
+		'bio' => '',
+		'picked_category_ids' => array(),
+		'picked_subcategory_ids' => array(),
+		'picked_tag_ids' => array(),
+		'photo_paths' => $photo_paths,
+	);
+}
+
+
+/*
+ * DescribeSampleWithClip: asks CLIP every menu, and works out what SHOULD be
+ * written into the sample by THE RULE (fill only what's empty). Changes
+ * nothing in the database: SaveClipDescriptionIntoSample() does the writing,
+ * so --dry-run can show this without touching anything.
+ * Returns:
+ *   'guesses'      menu name => every guess, best first (for the bio, and for humans)
+ *   'what_to_write' only the fields that were empty: name, slug, bio,
+ *                  category_ids, subcategory_ids, tag_ids
+ */
+function DescribeSampleWithClip($clip_classifier, $sample_facts) {
+	$tuning_knobs = GetClipTuningKnobs();
+	$photo_paths = $sample_facts['photo_paths'];
+	$guesses = array();
+	$what_to_write = array();
+
+	// ---- What is it? Categories first. ----
+	// If Presence picked categories, CLIP only chooses between HIS picks.
+	$every_category = GetEveryCategoryForClip();
+	$category_menu = array();
+	if (count($sample_facts['picked_category_ids']) > 0) {
+		foreach ($sample_facts['picked_category_ids'] as $picked_category_id) {
+			if (isset($every_category[$picked_category_id])) {
+				$category_menu[$picked_category_id] = $every_category[$picked_category_id];
+			}
+		}
+	} else {
+		$category_menu = $every_category;
+	}
+	$guesses['category'] = AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $category_menu, $tuning_knobs['caption_for_what_it_is']);
+
+	$winning_category = NULL;
+	if (count($guesses['category']) > 0) {
+		$winning_category = $guesses['category'][0];
+	}
+
+	// only save a category CLIP actually chose: with one category on the menu it's "100% sure", which is meaningless
+	if (count($sample_facts['picked_category_ids']) == 0 && $winning_category !== NULL && count($category_menu) >= 2) {
+		$what_to_write['category_ids'] = array($winning_category['id']);
+	}
+
+	// ---- Then the sub-categories inside the winning category. ----
+	$winning_subcategory = NULL;
+	if ($winning_category !== NULL) {
+		$subcategory_menu = GetSubcategoriesForClip($winning_category['id']);
+		if (count($subcategory_menu) >= 2) {
+			$guesses['subcategory'] = AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $subcategory_menu, $tuning_knobs['caption_for_what_it_is']);
+			$winning_subcategory = $guesses['subcategory'][0];
+			if (count($sample_facts['picked_subcategory_ids']) == 0) {
+				$what_to_write['subcategory_ids'] = array($winning_subcategory['id']);
+			}
+		}
+	}
+
+	// ---- Tags: the adjectives. ----
+	$every_tag = GetEveryTagForClip();
+	$guesses['tags'] = AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $every_tag, $tuning_knobs['caption_for_describing_words']);
+	if (count($sample_facts['picked_tag_ids']) == 0 && count($every_tag) > 0) {
+		$coin_flip_score = 1 / count($every_tag);
+		$lowest_score_worth_picking = $coin_flip_score * $tuning_knobs['tag_must_beat_a_coin_flip_by'];
+		$tag_ids_to_pick = array();
+		foreach ($guesses['tags'] as $tag_guess) {
+			if (count($tag_ids_to_pick) >= $tuning_knobs['most_tags_to_pick']) {
+				break;
+			}
+			if ($tag_guess['score'] >= $lowest_score_worth_picking) {
+				$tag_ids_to_pick[] = $tag_guess['id'];
+			}
+		}
+		if (count($tag_ids_to_pick) > 0) {
+			$what_to_write['tag_ids'] = $tag_ids_to_pick;
+		}
+	}
+
+	// ---- The built-in describing words: color, pattern, condition. ----
+	foreach (GetClipDescribingWordMenus() as $menu_name => $menu_words) {
+		$guesses[$menu_name] = AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $menu_words, $tuning_knobs['caption_for_describing_words']);
+	}
+
+	// ---- Words. ----
+	// The noun: the sub-category if CLIP picked one ("Combat Boots"), else the
+	// category ("Boots"), else, with no categories in the database at all, "Thing".
+	$what_it_is = "thing";
+	if ($winning_category !== NULL) {
+		$what_it_is = strtolower($winning_category['label']);
+	}
+	if ($winning_subcategory !== NULL) {
+		$what_it_is = strtolower($winning_subcategory['label']);
+	}
+	$best_color = $guesses['color'][0]['label'];
+	$best_pattern = $guesses['pattern'][0]['label'];
+	$best_condition = $guesses['condition'][0]['label'];
+
+	$summary_words = ucfirst("$best_color $what_it_is, $best_pattern, $best_condition");
+
+	if (strpos($sample_facts['name'], GetMysteryThingNamePrefix()) === 0) {
+		$what_to_write['name'] = ucwords("$best_color $what_it_is");
+	}
+	if (trim((string)$sample_facts['slug']) === "") {
+		$what_to_write['slug'] = $summary_words;
+	}
+	if (trim((string)$sample_facts['bio']) === "") {
+		$what_to_write['bio'] = WriteClipGuessesAsBio($guesses, $tuning_knobs['guesses_to_list_in_the_bio']);
+	}
+
+	return array(
+		'oid' => $sample_facts['oid'],
+		'summary' => $summary_words,
+		'guesses' => $guesses,
+		'what_to_write' => $what_to_write,
+	);
+}
+
+
+/*
+ * WriteClipGuessesAsBio: every menu's best few guesses, with how sure CLIP
+ * was, so when the winner is wrong the right word is probably right there.
+ * It's Markdown on the public page, so "- " lines become a list.
+ */
+function WriteClipGuessesAsBio($guesses, $how_many_per_menu) {
+	$menu_names_for_humans = array(
+		'category' => 'What',
+		'subcategory' => 'Kind',
+		'tags' => 'Tags',
+		'color' => 'Color',
+		'pattern' => 'Pattern',
+		'condition' => 'Condition',
+	);
+
+	$bio_lines = array();
+
+	foreach ($menu_names_for_humans as $menu_name => $menu_name_for_humans) {
+		if (!isset($guesses[$menu_name]) || count($guesses[$menu_name]) == 0) {
+			continue;
+		}
+		$guesses_as_words = array();
+		foreach (array_slice($guesses[$menu_name], 0, $how_many_per_menu) as $single_guess) {
+			$sureness_percent = round($single_guess['score'] * 100);
+			$guesses_as_words[] = strtolower($single_guess['label']) . " ($sureness_percent%)";
+		}
+		$bio_lines[] = "- $menu_name_for_humans: " . implode(", ", $guesses_as_words);
+	}
+
+	return implode("\n", $bio_lines);
+}
+
+
+/*
+ * MakeSampleNameNotTaken: "Black T-shirts" is going to happen a lot. If the
+ * name (or the URL made from it) is taken by another sample, try
+ * "Black T-shirts 2", "Black T-shirts 3", ... until one is free.
+ * Returns the free name; make the URL from it with MakeURL(strtolower(...)).
+ */
+function MakeSampleNameNotTaken($wanted_name, $this_samples_oid) {
+	global $conn;
+
+	$name_to_try = $wanted_name;
+	$number_to_tack_on = 1;
+
+	$name_check_query = $conn->prepare(
+		"SELECT `oid`
+		 FROM `samples`
+		 WHERE (`name` = ? OR `url` = ?) AND `oid` <> ?"
+	);
+
+	while (TRUE) {
+		$url_to_try = MakeURL(strtolower($name_to_try));
+		$name_check_query->bind_param("ssi", $name_to_try, $url_to_try, $this_samples_oid);
+		$name_check_query->execute();
+		$how_many_already_have_it = $name_check_query->get_result()->num_rows;
+
+		if ($how_many_already_have_it == 0) {
+			break;
+		}
+
+		$number_to_tack_on++;
+		$name_to_try = "$wanted_name $number_to_tack_on";
+	}
+
+	$name_check_query->close();
+	return $name_to_try;
+}
+
+
+/*
+ * SaveClipDescriptionIntoSample: writes DescribeSampleWithClip()'s
+ * 'what_to_write' into the database. Words get the same htmlspecialchars()
+ * the forms give them. Returns a short list of what got filled in, for
+ * telling the human ("name, summary, bio, category Boots, tags witchy").
+ */
+function SaveClipDescriptionIntoSample($clip_description) {
+	global $conn;
+
+	$sample_id = (int)$clip_description['oid'];
+	$what_to_write = $clip_description['what_to_write'];
+	$what_got_filled_in = array();
+
+	if (isset($what_to_write['name'])) {
+		$new_name = MakeSampleNameNotTaken(htmlspecialchars($what_to_write['name']), $sample_id);
+		$new_url = MakeURL(strtolower($new_name));
+		$new_display_name = UniqueObfuscatedSampleName(ObfuscatesampleNameAutomatically($new_name));
+		$new_alt_url = GetAltUrl(MakeURL(strtolower($new_display_name)));
+
+		$name_update = $conn->prepare(
+			"UPDATE `samples`
+			 SET `name` = ?, `url` = ?, `display_name` = ?, `alt_url` = ?
+			 WHERE `oid` = ?"
+		);
+		$name_update->bind_param("ssssi", $new_name, $new_url, $new_display_name, $new_alt_url, $sample_id);
+		$name_update->execute();
+		$name_update->close();
+		$what_got_filled_in[] = "name \"$new_name\"";
+	}
+
+	if (isset($what_to_write['slug'])) {
+		$new_slug = htmlspecialchars($what_to_write['slug']);
+		$slug_update = $conn->prepare(
+			"UPDATE `samples`
+			 SET `slug` = ?
+			 WHERE `oid` = ?"
+		);
+		$slug_update->bind_param("si", $new_slug, $sample_id);
+		$slug_update->execute();
+		$slug_update->close();
+		$what_got_filled_in[] = "summary";
+	}
+
+	if (isset($what_to_write['bio'])) {
+		$new_bio = htmlspecialchars($what_to_write['bio']);
+		$bio_update = $conn->prepare(
+			"UPDATE `samples`
+			 SET `bio` = ?
+			 WHERE `oid` = ?"
+		);
+		$bio_update->bind_param("si", $new_bio, $sample_id);
+		$bio_update->execute();
+		$bio_update->close();
+		$what_got_filled_in[] = "bio";
+	}
+
+	// categories, sub-categories, tags: one INSERT per picked id, same tables the forms use
+	$list_tables = array(
+		'category_ids' => array("table" => "samplecategories", "column" => "cid", "guesses" => "category", "words" => "category"),
+		'subcategory_ids' => array("table" => "samplesubcategories", "column" => "subid", "guesses" => "subcategory", "words" => "sub-category"),
+		'tag_ids' => array("table" => "sampletags", "column" => "tid", "guesses" => "tags", "words" => "tags"),
+	);
+	foreach ($list_tables as $write_key => $where_it_goes) {
+		if (!isset($what_to_write[$write_key])) {
+			continue;
+		}
+		// table and column names come from the array right above, never from a form
+		$link_insert = $conn->prepare(
+			"INSERT INTO `" . $where_it_goes['table'] . "` (`" . $where_it_goes['column'] . "`, `oid`)
+			 VALUES (?, ?)"
+		);
+		$names_that_got_picked = array();
+		foreach ($what_to_write[$write_key] as $picked_id) {
+			$picked_id = (int)$picked_id;
+			$link_insert->bind_param("ii", $picked_id, $sample_id);
+			$link_insert->execute();
+			// find the name for the "here's what CLIP did" message
+			foreach ($clip_description['guesses'][$where_it_goes['guesses']] as $single_guess) {
+				if ((int)$single_guess['id'] === $picked_id) {
+					$names_that_got_picked[] = $single_guess['label'];
+				}
+			}
+		}
+		$link_insert->close();
+		$what_got_filled_in[] = $where_it_goes['words'] . " " . implode(", ", $names_that_got_picked);
+	}
+
+	return $what_got_filled_in;
+}
+
+
+/*
+ * RunOfflineClassifyOnSample: how the upload page runs CLIP. Starts
+ * `php offline-classify.php --sample N --json` as its own process, waits for
+ * it (~3 seconds), and returns what it said, like:
+ *   ['summary' => 'Yellow boots, striped, worn-in', 'filled_in' => ['name "Yellow Boots"', 'bio', ...]]
+ * Returns NULL if CLIP fell over, and says why in the Apache error log.
+ */
+function RunOfflineClassifyOnSample($oid) {
+	global $dirlocation;
+
+	// `timeout 120`: if CLIP ever hangs, the upload page shouldn't hang with it
+	$clip_command = "timeout 120 /usr/bin/php " . escapeshellarg("$dirlocation/offline-classify.php")
+		. " --sample " . (int)$oid . " --json";
+
+	// proc_open instead of exec(), so CLIP's chatter on stderr stays out of the
+	// JSON on stdout. Descriptor 1 = stdout, 2 = stderr, both pipes we read.
+	$pipe_setup = array(
+		1 => array("pipe", "w"),
+		2 => array("pipe", "w"),
+	);
+	$clip_process = proc_open($clip_command, $pipe_setup, $clip_pipes);
+	if (!is_resource($clip_process)) {
+		error_log("CLIP: couldn't even start: $clip_command");
+		return NULL;
+	}
+
+	$clip_json_output = stream_get_contents($clip_pipes[1]);
+	$clip_complaints = stream_get_contents($clip_pipes[2]);
+	fclose($clip_pipes[1]);
+	fclose($clip_pipes[2]);
+	$clip_exit_code = proc_close($clip_process);
+
+	if ($clip_exit_code !== 0) {
+		error_log("CLIP: exit code $clip_exit_code. It said: " . trim($clip_complaints));
+		return NULL;
+	}
+
+	$clip_answer = json_decode($clip_json_output, TRUE);
+	if (!is_array($clip_answer) || !isset($clip_answer['summary'])) {
+		error_log("CLIP: output wasn't the JSON I expected: " . substr($clip_json_output, 0, 300));
+		return NULL;
+	}
+
+	return $clip_answer;
+}
+
+
+/*
+ * FillInBlankSampleFieldsFromClip: the upload page's half. After a NEW
+ * sample's photos are saved, run CLIP and say what it filled in.
+ */
+function FillInBlankSampleFieldsFromClip($oid) {
+	$clip_answer = RunOfflineClassifyOnSample($oid);
+
+	if ($clip_answer === NULL) {
+		echo "<div class='AdminWarning'>CLIP couldn't make a guess this time (details in the error log). "
+			. "Fill the words in by hand, or run <code>php offline-classify.php --mysteries</code> later.</div>";
+		return;
+	}
+
+	$what_got_filled_in = "nothing, everything was already filled in";
+	if (count($clip_answer['filled_in']) > 0) {
+		$what_got_filled_in = implode("; ", $clip_answer['filled_in']);
+	}
+
+	echo "<div class='AdminInfo'>CLIP thinks this is: <B>" . htmlspecialchars($clip_answer['summary']) . "</B><br>"
+		. "Filled in: " . htmlspecialchars($what_got_filled_in) . ". Fix whatever it got wrong.</div>";
+}
+
 
 function allPublicCategories() {
 	// XXX: Redo for custom cat sorting
@@ -1796,6 +2458,10 @@ function GathersampleInfo($oid) {
 	mysqli_free_result($result);
 	// AdminSelectCategories($oid) AdminSelectTags($oid) AdminSelectSeasons($oid)
 	// lemme have hash of media
+	// Start these as empty lists: CLIP-made samples can have no categories or
+	// tags yet, and array_diff(..., NULL) at save time is a PHP 8 fatal error.
+	$sampleinfo['categories'] = array();
+	$sampleinfo['tags'] = array();
 	$query = sprintf("SELECT `cid` FROM `samplecategories` WHERE `oid` = %s", mysqli_real_escape_string($conn,$oid));
 	$result = mysqli_query($conn,$query);
 	while ($row = mysqli_fetch_assoc($result)) {
@@ -1905,6 +2571,7 @@ function UniqueObfuscatedSampleName($name) {
 		// go loop for a new alturl
 		$number = 1;
 		$basename = $name; // increment the number, not append another digit
+		$done = 0; // PHP 8 grumbles about a loop flag that was never set
 		while (!$done) {
 			$name = "$basename $number"; // HEY THERES A SPACE HERE 
 			$query = sprintf("SELECT `display_name` FROM `samples` WHERE `display_name` = '%s'", mysqli_real_escape_string($conn,$name));
@@ -2003,17 +2670,14 @@ function AdminSampleSaveSingle() {
 	if ($is_highlighted != $sampleinfo['is_highlighted']) {
 		$samplesave['is_highlighted'] = $is_highlighted;
 	}
-	// categories update
-	if (isset($_REQUEST['categories'])) {
-		$categories = array();
-		foreach ($_REQUEST['categories'] as $key => $value) {
-			$categories[$key] = preg_replace("/[^0-9]/","",$value);
-		}
-		if (array_diff($categories, $sampleinfo['categories']) || array_diff($sampleinfo['categories'], $categories)) {
-			$samplesave['samplecategories'] = $categories;	// categories have been updated
-		}
-	} else {
-		$errors[] = "Please select one or more categories for this sample.";
+	// categories update: optional now. A required-field error here throws away
+	// everything else typed on the page, and CLIP-made samples start with none.
+	$categories = array();
+	foreach (($_REQUEST['categories'] ?? array()) as $picked_category_id) {
+		$categories[] = preg_replace("/[^0-9]/","",$picked_category_id);
+	}
+	if (array_diff($categories, $sampleinfo['categories']) || array_diff($sampleinfo['categories'], $categories)) {
+		$samplesave['samplecategories'] = $categories;	// categories have been updated
 	}
 	// subcategories
 	$subcategories = array();
@@ -2023,19 +2687,14 @@ function AdminSampleSaveSingle() {
 		}
 	}
 	$samplesave['samplesubcategories'] = $subcategories;
-	// tags
-	if (isset($_REQUEST['tags'])) {
-		$tags = array();
-		foreach ($_REQUEST['tags'] as $key => $value) {
-			$tags[$key] = preg_replace("/[^0-9]/","",$value);
-		}
-		if (isEmpty($sampleinfo['tags'])) {
-			$samplesave['sampletags'] = $tags;	// tags have been updated
-		} else if (array_diff($tags, $sampleinfo['tags']) || array_diff($sampleinfo['tags'], $tags)) {
-			$samplesave['sampletags'] = $tags;	// tags have been updated
-		}
-	} else {
-		$errors[] = "Please pick one or more tags for this sample.";
+	// tags: optional now (CLIP-made samples start with none). Picking none is a
+	// real answer too, and has to be able to clear out tags picked before.
+	$tags = array();
+	foreach (($_REQUEST['tags'] ?? array()) as $picked_tag_id) {
+		$tags[] = preg_replace("/[^0-9]/","",$picked_tag_id);
+	}
+	if (array_diff($tags, $sampleinfo['tags']) || array_diff($sampleinfo['tags'], $tags)) {
+		$samplesave['sampletags'] = $tags;	// tags have been updated
 	}
 	// seasons: optional. Picking none means "year-round", so an empty pick is a real
 	// answer, and it has to be able to clear out seasons that were picked before.
@@ -2072,7 +2731,7 @@ function AdminSampleSaveSingle() {
 			}
 		}
 		foreach (array("samplecategories" => "cid","sampletags" => "tid","sampleseasons" => "sid", "samplesubcategories" => "subid") as $table => $column) {
-			if ( is_countable($samplesave[$table]) || ($table == "samplesubcategories") ){
+			if ( is_countable($samplesave[$table] ?? NULL) || ($table == "samplesubcategories") ){ // not set = that list didn't change
 				// wipe out old data
 				$query = sprintf("DELETE FROM `%s` WHERE `oid` =  '%s'", 
 					mysqli_real_escape_string($conn, $table),
@@ -2256,9 +2915,11 @@ function PrepareVideoPlayer($input) {
 				}
 			}
 		}
-		if (($_REQUEST['page'] === 'admin') && ((string)$videocount === '0')) {
-			echo "<div class='AdminError'>No Videos Available for this sample!</div>";
-		}
+		// Commented out 2026-11-10: a closet is photos, not band videos. A red
+		// error box on every single sample for "no video" was just nagging.
+		//if (($_REQUEST['page'] === 'admin') && ((string)$videocount === '0')) {
+		//	echo "<div class='AdminError'>No Videos Available for this sample!</div>";
+		//}
 	} elseif (is_string($input) || is_int($input)) {
 		// I just got a media ID only, lemme populate with all info
 		// If this is used, show THIS ONE video
@@ -2342,16 +3003,28 @@ function AdminsampleSaveNew() {
 	// save sample info, seasons, tags, categories.
 	// then go to AdminsampleSaveMedia() for the media processing
 	global $conn;
-	(isEmpty($_REQUEST['name']))? $errors[] = "Please enter the sample or act name." : $name = htmlspecialchars(makeCase(convert_smart_quotes(trim($_REQUEST['name']))));
-	(isEmpty($_REQUEST['slug']))? $errors[] = "Please provide a short descriptive phrase about sample." : $slug = htmlspecialchars(makeCase(convert_smart_quotes(trim($_REQUEST['slug']))));
-	// XXX: we don't deal with CR/newlines or html/markup at all in bio field yet!
-	if (isEmpty($_REQUEST['bio'])) {
-		echo "<div class='AdminError'>Missing the sample's bio. Please have at least a paragraph describing the sample.</div>"; 
+	// 2026: "I don't wanna type no more." Name, summary, bio, tags and categories
+	// are all optional now. Leave them blank, upload a photo, and
+	// FillInBlankSampleFieldsFromClip() writes CLIP's guesses in after the
+	// photos are saved. The one rule: a name OR a photo, because CLIP can't
+	// guess from nothing.
+	if (isEmpty($_REQUEST['name'])) {
+		if (CheckForFiles()) {
+			// a stand-in name, just long enough for CLIP to replace it. If CLIP
+			// fails, this is what you'll see, and it at least says when.
+			$name = GetMysteryThingNamePrefix() . date("Y-m-d H.i.s");
+		} else {
+			$errors[] = "Please type a name, or upload a photo so CLIP can guess one.";
+			$name = "";
+		}
 	} else {
-		$bio = htmlspecialchars(convert_smart_quotes(trim($_REQUEST['bio'])));
+		$name = htmlspecialchars(makeCase(convert_smart_quotes(trim($_REQUEST['name']))));
 	}
+	$slug = htmlspecialchars(makeCase(convert_smart_quotes(trim($_REQUEST['slug'] ?? ''))));
+	// XXX: we don't deal with CR/newlines or html/markup at all in bio field yet!
+	$bio = htmlspecialchars(convert_smart_quotes(trim($_REQUEST['bio'] ?? '')));
 	if (isEmpty($_REQUEST['display_name'])) {
-		$display_name = UniqueObfuscatedsampleName(ObfuscatesampleNameAutomatically(htmlspecialchars(convert_smart_quotes(trim($_REQUEST['name'])))));
+		$display_name = UniqueObfuscatedsampleName(ObfuscatesampleNameAutomatically($name));
 	} else {
 		$display_name = UniqueObfuscatedsampleName(htmlspecialchars(makeCase(convert_smart_quotes(trim($_REQUEST['display_name'])))));
 	}
@@ -2359,28 +3032,24 @@ function AdminsampleSaveNew() {
 	$is_active = isset($_REQUEST['is_active']);
 	isset($_REQUEST['is_searchable']) ? $is_searchable = 1 : $is_searchable = 0;
 	isset($_REQUEST['is_highlighted']) ? $is_highlighted = 1 : $is_highlighted = 0;
-	if (isset($_REQUEST['categories'])) {
-		$categories = array();
-		foreach ($_REQUEST['categories'] as $key => $value) {
-			$categories[$key] = preg_replace("/[^0-9]/","",$value);
-		}
-	} else {
-		$errors[] = "Please select one or more categories for this sample.";
+	// categories, tags, seasons: all optional now, pick them later on the edit page
+	$categories = array();
+	foreach (($_REQUEST['categories'] ?? array()) as $picked_category_id) {
+		$categories[] = preg_replace("/[^0-9]/","",$picked_category_id);
 	}
-	if (isset($_REQUEST['tags'])) {
-		$tags = array();
-		foreach ($_REQUEST['tags'] as $key => $value) {
-			$tags[$key] = preg_replace("/[^0-9]/","",$value);
-		}
-	} else {
-		$errors[] = "Please pick one or more tags for this sample.";
+	$tags = array();
+	foreach (($_REQUEST['tags'] ?? array()) as $picked_tag_id) {
+		$tags[] = preg_replace("/[^0-9]/","",$picked_tag_id);
 	}
 	// seasons are optional: none picked = year-round
 	$seasons = array();
 	foreach (($_REQUEST['seasons'] ?? array()) as $picked_season_id) {
 		$seasons[] = preg_replace("/[^0-9]/","",$picked_season_id);
 	}
+	// XXX: This guess at an URL is pretty weaksauce
+	$url = MakeURL(strtolower($name));
 	// check if this is a duplicate // being a real jerk by including the "cleaned" URL text
+	// (the URL used to be checked one line BEFORE it was made, so only the name was really checked)
 	$query = sprintf("SELECT `name` FROM `samples` WHERE `name` = '%s' OR `url` = '%s'",
 		mysqli_real_escape_string($conn, $name),
 		mysqli_real_escape_string($conn, $url)
@@ -2389,8 +3058,6 @@ function AdminsampleSaveNew() {
 	if (mysqli_num_rows($result) > 0) {
 		$errors[] = "This sample may already exist in the database! Please check the sample's name carefully.";
 	}
-	// XXX: This guess at an URL is pretty weaksauce
-	$url = MakeURL(strtolower($name));
 	$alt_url = GetAltUrl(MakeURL(strtolower($display_name)));	// what's the URL if we're in use_display_name mode?  XXX: This is pretty retarded. I want full names in URL for SEO.  even specifiying an URL at all is unnecessary since going to just search on name anyways.
 	// insert into sample table and get the auto_incremented oid
 	if (!isset($errors)) {
@@ -2436,7 +3103,12 @@ function AdminsampleSaveNew() {
 					$errors[] = "Error saving season $sid for $oid!" .mysqli_error($conn);
 				}
 			}
-			echo "<div class='AdminSuccess'>sample information for <B>$name</B> updated!</div>";
+			// a blank name means "Mystery Thing <date>" right now, and CLIP renames it in a second
+			if (isEmpty($_REQUEST['name'])) {
+				echo "<div class='AdminSuccess'>New sample saved. Asking CLIP what it is...</div>";
+			} else {
+				echo "<div class='AdminSuccess'>sample information for <B>$name</B> updated!</div>";
+			}
 		} else {
 			$errors[] = "<B>Did not update sample!</B> Database Failure: ".mysqli_error($conn);
 		}
@@ -2461,6 +3133,7 @@ function GetAltUrl($alturl) {
 		// go loop for a new alturl
 		$number = 1;
 		$basename = $alturl; // increment the number, not append another digit
+		$done = 0; // PHP 8 grumbles about a loop flag that was never set
 		while (!$done) {
 			$alturl = "$basename$number";
 			$query = sprintf("SELECT `alt_url` FROM `samples` WHERE `alt_url` = '%s'", mysqli_real_escape_string($conn,$alturl));
@@ -2474,6 +3147,7 @@ function GetAltUrl($alturl) {
 function AdminsampleSaveMedia($oid) {
 	global $conn;
 	$savedfilecount = 0;
+	$errors = array(); // PHP 8 wants the list to exist before count() looks at it
 	// page 1's save sample's media
 	if (CheckForFiles()) {
 		$newfiles = array();
@@ -2513,7 +3187,7 @@ function AdminsampleSaveMedia($oid) {
 			}
 		}
 	}
-	if (is_countable($errors)) {
+	if (count($errors) > 0) {
 		foreach ($errors as $error) {
 			echo "<div class='AdminError'><B>$error</B></div>";
 		}

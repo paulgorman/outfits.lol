@@ -1013,9 +1013,18 @@ function AdminsampleFormNew() {
 				<div class="adminPanelHeader">
 					<h2 class="adminPanelTitle">Add a new sample</h2>
 				</div>
+				<!-- photos first: they're the main thing now, CLIP writes the words from them -->
+				<div class="adminField">
+					<label for="1">Photos and Videos</label>
+					<div>
+						<div id="file_container"><input name="filesToUpload[]" class="filesToUpload" id="1" type="file" multiple="" onchange="makeFileList();" /></div>
+						<span class="adminFieldHint">Photos of ONE thing. Big phone photos are fine: they get resized and turned upright. Leave the words below blank and CLIP guesses them from the photos.</span>
+						<ul id="fileList" class="adminFileList"></ul>
+					</div>
+				</div>
 				<div class="adminField">
 					<label for="new_sample_name">Real Name</label>
-					<input type="text" name="name" id="new_sample_name" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['name'] ?? '')))); ?>">
+					<input type="text" name="name" id="new_sample_name" placeholder="Blank = CLIP guesses" value="<?= MakeCase(htmlspecialchars(trim(($_REQUEST['name'] ?? '')))); ?>">
 				</div>
 				<div class="adminField">
 					<label for="new_sample_display_name">Display Name</label>
@@ -1026,7 +1035,7 @@ function AdminsampleFormNew() {
 				</div>
 				<div class="adminField">
 					<label for="new_sample_slug">One-Line Summary</label>
-					<textarea rows="2" name="slug" id="new_sample_slug" wrap="virtual"><?= MakeCase(htmlspecialchars(trim(($_REQUEST['slug'] ?? '')))); ?></textarea>
+					<textarea rows="2" name="slug" id="new_sample_slug" placeholder="Blank = CLIP guesses" wrap="virtual"><?= MakeCase(htmlspecialchars(trim(($_REQUEST['slug'] ?? '')))); ?></textarea>
 				</div>
 				<div class="adminChecks">
 					<label class="adminCheck" title="Active, available for gigs">
@@ -1044,7 +1053,7 @@ function AdminsampleFormNew() {
 				</div>
 				<div class="adminField">
 					<label for="new_sample_bio">Bio</label>
-					<textarea rows="8" name="bio" id="new_sample_bio" wrap="virtual"><?= htmlspecialchars(trim(($_REQUEST['bio'] ?? ''))); ?></textarea>
+					<textarea rows="8" name="bio" id="new_sample_bio" placeholder="Blank = CLIP lists everything it guessed, for you to edit down" wrap="virtual"><?= htmlspecialchars(trim(($_REQUEST['bio'] ?? ''))); ?></textarea>
 				</div>
 				<div class="adminField">
 					<label for="Categories">Categories</label>
@@ -1068,14 +1077,6 @@ function AdminsampleFormNew() {
 						<select id="Seasons" multiple="multiple" name="seasons[]" title="Add a season..." class="sminit">
 							<?= AdminSelectSeasons(); ?>
 						</select>
-					</div>
-				</div>
-				<div class="adminField">
-					<label for="1">Photos and Videos</label>
-					<div>
-						<div id="file_container"><input name="filesToUpload[]" class="filesToUpload" id="1" type="file" multiple="" onchange="makeFileList();" /></div>
-						<span class="adminFieldHint">Big phone photos are fine: they get resized (and turned upright) for the web site.</span>
-						<ul id="fileList" class="adminFileList"></ul>
 					</div>
 				</div>
 				<div class="adminFormButtons">
