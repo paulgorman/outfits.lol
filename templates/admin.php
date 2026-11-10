@@ -439,57 +439,55 @@ function ShowPageNav($pageinfo) {
 	return $returnhtml;
 }
 
-function AdminShowLocations($locations) {
-	// No "show samples here" button: the old magnifying glass posted
-	// search_location, which ShowAdminPage() never learned. It just
-	// reloaded this list. Add it back when it does something.
+function AdminShowSeasons($every_season) {
+	// $every_season is sid => season name, from GetEverySeason() in shared.php.
+	// No "show me the samples" button yet: ShowAdminPage() has no
+	// search_season. Add one when the outfit matcher wants it.
 	?>
 		<section class="adminPanel">
 			<div class="adminPanelHeader">
-				<h2 class="adminPanelTitle">Locations</h2>
+				<h2 class="adminPanelTitle">Seasons</h2>
+				<span class="adminPanelSubtitle">A sample with no season is year-round</span>
 			</div>
 			<div class="adminList">
-				<? foreach ($locations as $location_details) { ?>
-					<? $location_edit_address = "/admin/locations_list/edit_location?lid=" . (int)$location_details['lid']; ?>
+				<? foreach ($every_season as $season_id => $season_name) { ?>
+					<? $season_edit_address = "/admin/seasons_list/edit_season?sid=" . (int)$season_id; ?>
 					<div class="adminListRow">
-						<a class="adminListRowMain" href="<?= $location_edit_address ?>">
-							<span class="adminListRowName"><?= $location_details['city'] ?>, <?= $location_details['state'] ?></span>
+						<a class="adminListRowMain" href="<?= $season_edit_address ?>">
+							<span class="adminListRowName"><?= $season_name ?></span>
 						</a>
 						<div class="adminListRowActions">
-							<a class="adminButton adminButtonSmall" href="<?= $location_edit_address ?>">Rename</a>
+							<a class="adminButton adminButtonSmall" href="<?= $season_edit_address ?>">Rename</a>
 							<?
-								// careful: unlike tags and categories, this one deletes right away, no "are you sure?" page
+								// careful: this deletes right away, no "are you sure?" page
+								// (the samples stay, they just lose this season)
 								ShowAdminDeleteFormButton(
-									"/admin/locations_list",
-									array("lid" => $location_details['lid'], "function" => "del_location"),
-									$location_details['city'] . ", " . $location_details['state']
+									"/admin/seasons_list",
+									array("sid" => $season_id, "function" => "del_season"),
+									$season_name
 								);
 							?>
 						</div>
 					</div>
 				<? } ?>
-				<? if (count($locations) === 0) { ?>
-					<p class="adminEmptyList">No locations yet.</p>
+				<? if (count($every_season) === 0) { ?>
+					<p class="adminEmptyList">No seasons yet. It's always sweater weather in here.</p>
 				<? } ?>
 			</div>
 		</section>
 
-		<form method="POST" action="/admin/locations_list" enctype="multipart/form-data">
-			<input type="hidden" name="function" value="add_location">
+		<form method="POST" action="/admin/seasons_list" enctype="multipart/form-data">
+			<input type="hidden" name="function" value="add_season">
 			<section class="adminPanel adminPanelAdd">
 				<div class="adminPanelHeader">
-					<h2 class="adminPanelTitle">Add a new location</h2>
+					<h2 class="adminPanelTitle">Add a new season</h2>
 				</div>
 				<div class="adminField">
-					<label for="new_location_city">City</label>
-					<input type="text" name="city" id="new_location_city">
-				</div>
-				<div class="adminField">
-					<label for="new_location_state">State</label>
-					<select name="state" id="new_location_state"><option value="">Select a State</option><?= StateOptionsDropDown("none"); ?></select>
+					<label for="new_season_name">Name</label>
+					<input type="text" name="season" id="new_season_name" placeholder="Summer">
 				</div>
 				<div class="adminFormButtons">
-					<button type="submit" class="adminButton adminButtonPrimary">Add Location</button>
+					<button type="submit" class="adminButton adminButtonPrimary">Add Season</button>
 				</div>
 			</section>
 		</form>
@@ -890,26 +888,22 @@ function AdminEditSubCategory($dataarray) {
 	<?
 }
 
-function AdminEditLocation($dataarray) {
+function AdminEditSeason($season_details) {
 	?>
-		<form method="POST" action="/admin/locations_list" enctype="multipart/form-data">
-			<input type="hidden" name="function" value="save_location">
-			<input type="hidden" name="lid" value="<?= $dataarray['lid'] ?>">
+		<form method="POST" action="/admin/seasons_list" enctype="multipart/form-data">
+			<input type="hidden" name="function" value="save_season">
+			<input type="hidden" name="sid" value="<?= (int)$season_details['sid'] ?>">
 			<section class="adminPanel">
 				<div class="adminPanelHeader">
-					<h2 class="adminPanelTitle">Rename "<?= $dataarray['city'] ?>, <?= StateCodeToName($dataarray['state']) ?>"</h2>
+					<h2 class="adminPanelTitle">Rename "<?= $season_details['season'] ?>"</h2>
 				</div>
 				<div class="adminField">
-					<label for="edit_location_city">City</label>
-					<input type="text" name="city" id="edit_location_city" value="<?= $dataarray['city'] ?>">
-				</div>
-				<div class="adminField">
-					<label for="edit_location_state">State</label>
-					<select name="state" id="edit_location_state"><?= StateOptionsDropDown($dataarray['state']) ?></select>
+					<label for="edit_season_name">Season Name</label>
+					<input type="text" name="season" id="edit_season_name" value="<?= $season_details['season'] ?>">
 				</div>
 				<div class="adminFormButtons">
-					<button type="submit" class="adminButton adminButtonPrimary">Update Location</button>
-					<button type="button" class="adminButton" name="Cancel" onclick="window.location='/admin/locations_list'">Cancel</button>
+					<button type="submit" class="adminButton adminButtonPrimary">Update Season</button>
+					<button type="button" class="adminButton" name="Cancel" onclick="window.location='/admin/seasons_list'">Cancel</button>
 				</div>
 			</section>
 		</form>
@@ -1000,7 +994,7 @@ function AdminsampleFormNew() {
           $.bsmSelect.plugins.compatibility()
         ]
       });
-      $("#Locations").bsmSelect({
+      $("#Seasons").bsmSelect({
         addItemTarget: 'bottom',
         animate: true,
         highlight: true,
@@ -1069,10 +1063,10 @@ function AdminsampleFormNew() {
 					</div>
 				</div>
 				<div class="adminField">
-					<label for="Locations">Locations</label>
+					<label for="Seasons">Seasons</label>
 					<div class="adminMultiSelect">
-						<select id="Locations" multiple="multiple" name="locations[]" title="Add a location..." class="sminit">
-							<?= AdminSelectLocations(); ?>
+						<select id="Seasons" multiple="multiple" name="seasons[]" title="Add a season..." class="sminit">
+							<?= AdminSelectSeasons(); ?>
 						</select>
 					</div>
 				</div>
@@ -1160,7 +1154,7 @@ function AdminsampleFormSingle($sampleinfo) {
           $.bsmSelect.plugins.compatibility()
         ]
       });
-      $("#Locations").bsmSelect({
+      $("#Seasons").bsmSelect({
         addItemTarget: 'bottom',
         animate: true,
         highlight: true,
@@ -1299,10 +1293,10 @@ function AdminsampleFormSingle($sampleinfo) {
 					</div>
 				</div>
 				<div class="adminField">
-					<label for="Locations">Locations</label>
+					<label for="Seasons">Seasons</label>
 					<div class="adminMultiSelect">
-						<select id="Locations" multiple="multiple" name="locations[]" title="Add a location..." class="sminit">
-							<?= AdminSelectLocations($sampleinfo['oid']); ?>
+						<select id="Seasons" multiple="multiple" name="seasons[]" title="Add a season..." class="sminit">
+							<?= AdminSelectSeasons($sampleinfo['oid']); ?>
 						</select>
 					</div>
 				</div>

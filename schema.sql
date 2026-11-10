@@ -4,7 +4,7 @@
 
 -- DANGER!!! XXX --------------
 -- DROP ALL TABLES FOR A FRESH START HERE 
--- DROP TABLE IF EXISTS samples, samplecategories, samplesubcategories, samplelocations, locations, categories, media, sitehits, sampletags, tags, admins, pages;
+-- DROP TABLE IF EXISTS samples, samplecategories, samplesubcategories, sampleseasons, seasons, categories, media, sitehits, sampletags, tags, admins, pages;
 -- DANGER!!! XXX --------------
 
 CREATE TABLE `samples` (
@@ -34,20 +34,22 @@ CREATE TABLE `samplecategories` (
 	INDEX(`cid`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `samplelocations` (
-	`oid` INT NOT NULL, 
-	`lid` INT NOT NULL,
+-- Seasons were "locations" (city + state) back in the talent agency days.
+-- Now: summer wear versus winter wear. No seasons on a sample = year-round.
+CREATE TABLE `sampleseasons` (
+	`oid` INT NOT NULL,
+	`sid` INT NOT NULL,
 	INDEX(`oid`),
-	INDEX(`lid`)
+	INDEX(`sid`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `locations` (
-	`lid` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	`city` VARCHAR(40) NOT NULL UNIQUE,
-	`state` CHAR(2) NOT NULL,
-	INDEX(`city`),
-	INDEX(`state`)
+CREATE TABLE `seasons` (
+	`sid` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	`season` VARCHAR(40) NOT NULL UNIQUE
 ) ENGINE=InnoDB;
+
+-- in calendar order, because the admin sorts seasons by sid
+INSERT INTO `seasons` (`season`) VALUES ('Spring'), ('Summer'), ('Fall'), ('Winter');
 
 CREATE TABLE `categories` (
 	`cid` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,

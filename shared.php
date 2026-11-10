@@ -219,8 +219,8 @@ function SamplePage() {
 
 function getSampleMetaTags($sampleinfo) {
 	$meta = array();
-	// meta keywords are name, categories, tags, locations
-	$meta['keywords'] = "Outfits.lol, what to wear, grwm";
+	// meta keywords are name, categories, tags, seasons
+	$meta['keywords'] = "Outfits.lol, what to wear, grwm, "; // trailing comma: the sample's name gets glued on next
 	foreach (array_keys($sampleinfo) as $key) {
 		$meta['keywords'] .= $sampleinfo[$key]['name'] . ", ";
 		if (is_countable($sampleinfo[$key]['categories'])) {
@@ -231,8 +231,8 @@ function getSampleMetaTags($sampleinfo) {
 		foreach (array_keys($sampleinfo[$key]['tags'] ?? array()) as $subkey) {
 			$meta['keywords'] .= $sampleinfo[$key]['tags'][$subkey] . ", ";
 		}
-		foreach (array_keys($sampleinfo[$key]['locations'] ?? array()) as $subkey) {
-			$meta['keywords'] .= "'" . $sampleinfo[$key]['locations'][$subkey] . "', ";
+		foreach (array_keys($sampleinfo[$key]['seasons'] ?? array()) as $subkey) {
+			$meta['keywords'] .= $sampleinfo[$key]['seasons'][$subkey] . ", ";
 		}
 	}
 	$meta['keywords'] = substr($meta['keywords'], 0, -2) . ".";
@@ -388,7 +388,7 @@ function getSampleInfoFromURL($url) {
 		$oid = key($samplenames);
 		// has the user come in via a category page listing?
 		$samplenames[key($samplenames)]['cid'] = getSampleCategory($oid);
-		// Get other categories, tags, and locations
+		// Get other categories, tags, and seasons
 		$query = sprintf(
 			"SELECT `categories`.`cid`, `categories`.`category` FROM `categories`
 			 LEFT OUTER JOIN `samplecategories` ON `samplecategories`.`cid` = `categories`.`cid`
@@ -410,14 +410,14 @@ function getSampleInfoFromURL($url) {
 			$samplenames[$oid]['tags'][$row['tid']] = $row['name'];
 		}
 		$query = sprintf(
-			"SELECT `locations`.`lid`, `locations`.`city`, `locations`.`state` FROM `locations`
-			 LEFT OUTER JOIN `samplelocations` ON `samplelocations`.`lid` = `locations`.`lid`
-			 WHERE `samplelocations`.`oid` = '%s' ORDER BY `locations`.`state`",
+			"SELECT `seasons`.`sid`, `seasons`.`season` FROM `seasons`
+			 LEFT OUTER JOIN `sampleseasons` ON `sampleseasons`.`sid` = `seasons`.`sid`
+			 WHERE `sampleseasons`.`oid` = '%s' ORDER BY `seasons`.`sid`",
 			mysqli_real_escape_string($conn,$oid)
 		);
 		$result = mysqli_query($conn,$query);
 		while ($row = mysqli_fetch_assoc($result)) {
-			$samplenames[$oid]['locations'][$row['lid']] = $row['city'] . ", " . StateCodeToName($row['state']);
+			$samplenames[$oid]['seasons'][$row['sid']] = $row['season'];
 		}
 		$query = sprintf(
 			"SELECT * FROM `media` WHERE `oid` = %s ORDER BY `is_highlighted` DESC, `vidlength` ASC", 
@@ -1368,7 +1368,7 @@ function ShowAdminPage() {
 		"Samples" => "samples",
 		"Categories" => "categories_list",
 		"Tags" => "tags_list",
-		"Locations" => "locations_list",
+		"Seasons" => "seasons_list",
 		"Pages" => "pages",
 		"Admins" => "admin_users",
 		"Metrics" => "web_stats"
@@ -1464,25 +1464,27 @@ function ShowAdminPage() {
 					AdminListTags();
 			}
 		}
-		if ($_REQUEST['url'] == "locations_list") {
+		// Seasons used to be Locations: a piano player in Vegas, a gig in Orlando.
+		// Now it's summer wear versus winter wear.
+		if ($_REQUEST['url'] == "seasons_list") {
 			switch($_REQUEST['function']) {
-				case "add_location":
-					AdminSaveNewLocation();
-					AdminListLocations();
+				case "add_season":
+					AdminSaveNewSeason();
+					AdminListSeasons();
 					break;
-				case "del_location":
-					AdminDeleteLocation($_REQUEST['lid']);
-					AdminListLocations();
+				case "del_season":
+					AdminDeleteSeason($_REQUEST['sid']);
+					AdminListSeasons();
 					break;
-				case "edit_location":
-					AdminEditSingleLocation($_REQUEST['lid']);
+				case "edit_season":
+					AdminEditSingleSeason($_REQUEST['sid']);
 					break;
-				case "save_location":
-					AdminSaveSingleLocation();
-					AdminListLocations();
+				case "save_season":
+					AdminSaveSingleSeason();
+					AdminListSeasons();
 					break;
 				default:
-					AdminListLocations();
+					AdminListSeasons();
 			}
 		}
 		if ($_REQUEST['url'] == "pages") {
@@ -1792,7 +1794,7 @@ function GathersampleInfo($oid) {
 		}
 	}
 	mysqli_free_result($result);
-	// AdminSelectCategories($oid) AdminSelectTags($oid) AdminSelectLocations($oid)
+	// AdminSelectCategories($oid) AdminSelectTags($oid) AdminSelectSeasons($oid)
 	// lemme have hash of media
 	$query = sprintf("SELECT `cid` FROM `samplecategories` WHERE `oid` = %s", mysqli_real_escape_string($conn,$oid));
 	$result = mysqli_query($conn,$query);
@@ -1809,10 +1811,12 @@ function GathersampleInfo($oid) {
 		}
 	}
 	mysqli_free_result($result);
-	$query = sprintf("SELECT `lid` FROM `samplelocations` WHERE `oid` = %s", mysqli_real_escape_string($conn,$oid));
+	// no seasons = year-round, and array_diff() at save time wants an array, not a null
+	$sampleinfo['seasons'] = array();
+	$query = sprintf("SELECT `sid` FROM `sampleseasons` WHERE `oid` = %s", mysqli_real_escape_string($conn,$oid));
 	$result = mysqli_query($conn,$query);
 	while ($row = mysqli_fetch_assoc($result)) {
-		$sampleinfo['locations'][$row['lid']] = $row['lid'];
+		$sampleinfo['seasons'][$row['sid']] = $row['sid'];
 	}
 	mysqli_free_result($result);
 	$query = sprintf("SELECT `tid` FROM `sampletags` WHERE `oid` = %s", mysqli_real_escape_string($conn,$oid));
@@ -2033,22 +2037,19 @@ function AdminSampleSaveSingle() {
 	} else {
 		$errors[] = "Please pick one or more tags for this sample.";
 	}
-	// locations
-	if (isset($_REQUEST['locations'])) {
-		$locations = array();
-		foreach ($_REQUEST['locations'] as $key => $value) {
-			$locations[$key] = preg_replace("/[^0-9]/","",$value);
-		}
-		if (array_diff($locations, $sampleinfo['locations']) || array_diff($sampleinfo['locations'], $locations)) {
-			$samplesave['samplelocations'] = $locations;	// locations have been updated
-		}
-	} else {
-		$errors[] = "Please select one or more cities that this sample is local to.";
+	// seasons: optional. Picking none means "year-round", so an empty pick is a real
+	// answer, and it has to be able to clear out seasons that were picked before.
+	$seasons = array();
+	foreach (($_REQUEST['seasons'] ?? array()) as $picked_season_id) {
+		$seasons[] = preg_replace("/[^0-9]/","",$picked_season_id);
+	}
+	if (array_diff($seasons, $sampleinfo['seasons']) || array_diff($sampleinfo['seasons'], $seasons)) {
+		$samplesave['sampleseasons'] = $seasons;	// seasons have been updated
 	}
 	if (!isset($errors)) {
 		if (count($samplesave) > 1) { // more than just the oid...
 			foreach ($samplesave as $field => $value) {
-				if (preg_match("/(oid|samplecategories|samplesubcategories|sampletags|samplelocations)/",$field)) {
+				if (preg_match("/(oid|samplecategories|samplesubcategories|sampletags|sampleseasons)/",$field)) {
 					continue;
 				} else {
 					$query = sprintf("UPDATE `samples` SET `%s` = '%s' WHERE `oid` = %s",
@@ -2070,7 +2071,7 @@ function AdminSampleSaveSingle() {
 				$errors[] = "<B>Did not update sample information!</B> Database Failure: ".mysqli_error($conn);
 			}
 		}
-		foreach (array("samplecategories" => "cid","sampletags" => "tid","samplelocations" => "lid", "samplesubcategories" => "subid") as $table => $column) {
+		foreach (array("samplecategories" => "cid","sampletags" => "tid","sampleseasons" => "sid", "samplesubcategories" => "subid") as $table => $column) {
 			if ( is_countable($samplesave[$table]) || ($table == "samplesubcategories") ){
 				// wipe out old data
 				$query = sprintf("DELETE FROM `%s` WHERE `oid` =  '%s'", 
@@ -2090,7 +2091,7 @@ function AdminSampleSaveSingle() {
 						$errors[] = "Error saving category $cid for $oid!" .mysqli_error($conn);
 					}
 				}
-			}// else no category/tag/location changes
+			}// else no category/tag/season changes
 		}
 		// Save Uploaded Files
 		$filecount = AdminsampleSaveMedia($oid);
@@ -2338,7 +2339,7 @@ function FigurePageNav($type,$page=1) {
 }
 
 function AdminsampleSaveNew() {
-	// save sample info, locations, tags, categories.
+	// save sample info, seasons, tags, categories.
 	// then go to AdminsampleSaveMedia() for the media processing
 	global $conn;
 	(isEmpty($_REQUEST['name']))? $errors[] = "Please enter the sample or act name." : $name = htmlspecialchars(makeCase(convert_smart_quotes(trim($_REQUEST['name']))));
@@ -2374,13 +2375,10 @@ function AdminsampleSaveNew() {
 	} else {
 		$errors[] = "Please pick one or more tags for this sample.";
 	}
-	if (isset($_REQUEST['locations'])) {
-		$locations = array();
-		foreach ($_REQUEST['locations'] as $key => $value) {
-			$locations[$key] = preg_replace("/[^0-9]/","",$value);
-		}
-	} else {
-		$errors[] = "Please select one or more cities that this sample is local to.";
+	// seasons are optional: none picked = year-round
+	$seasons = array();
+	foreach (($_REQUEST['seasons'] ?? array()) as $picked_season_id) {
+		$seasons[] = preg_replace("/[^0-9]/","",$picked_season_id);
 	}
 	// check if this is a duplicate // being a real jerk by including the "cleaned" URL text
 	$query = sprintf("SELECT `name` FROM `samples` WHERE `name` = '%s' OR `url` = '%s'",
@@ -2429,13 +2427,13 @@ function AdminsampleSaveNew() {
 					$errors[] = "Error saving tag $tid for $oid!" .mysqli_error($conn);
 				}
 			}
-			foreach($locations as $lid) {
-				$query = sprintf("INSERT INTO `samplelocations` (`lid`,`oid`) VALUES (%s,%s)",
-					mysqli_real_escape_string($conn, $lid),
+			foreach($seasons as $sid) {
+				$query = sprintf("INSERT INTO `sampleseasons` (`sid`,`oid`) VALUES (%s,%s)",
+					mysqli_real_escape_string($conn, $sid),
 					mysqli_real_escape_string($conn, $oid)
 				);
 				if (mysqli_query($conn,$query) === FALSE) {
-					$errors[] = "Error saving location $lid for $oid!" .mysqli_error($conn);
+					$errors[] = "Error saving season $sid for $oid!" .mysqli_error($conn);
 				}
 			}
 			echo "<div class='AdminSuccess'>sample information for <B>$name</B> updated!</div>";
@@ -2697,70 +2695,176 @@ function AdminsampleListSearchResults() {
 	mysqli_free_result($result);
 }
 
-function AdminEditSingleLocation($lid) {
+/*
+ * ======================================================================
+ *  SEASONS (they were Locations, back in the talent agency days)
+ * ======================================================================
+ *
+ * A season is just a name: Spring, Summer, Fall, Winter, "Burning Man".
+ * Tables: `seasons` (sid, season) and `sampleseasons` (oid, sid), built
+ * exactly like `tags` and `sampletags`.
+ * A sample with no seasons at all means "wear it year-round".
+ * The list is sorted by sid, the order they were added, so the four
+ * seasons stay in calendar order instead of alphabetical (Fall, Spring,
+ * Summer, Winter, which is nobody's year).
+ */
+
+/*
+ * GetEverySeason: every season, in the order they were added.
+ * Returns an array of sid => season name. Used by the Seasons admin page
+ * and the season picker on the sample forms.
+ */
+function GetEverySeason() {
 	global $conn;
-	$query = sprintf("SELECT `lid`, `city`,`state` FROM `locations` WHERE `lid` = '%s'",
-		mysqli_real_escape_string($conn,$lid)
+
+	$every_season = array(); // zero seasons is still a list, PHP 8, calm down
+
+	// nothing from the outside goes into this query, so plain mysqli_query is fine
+	$season_rows = mysqli_query($conn,
+		"SELECT `sid`, `season`
+		 FROM `seasons`
+		 ORDER BY `sid`"
 	);
-	$result = mysqli_query($conn,$query);
-	$row = mysqli_fetch_assoc($result);
-	AdminEditLocation($row);
-	mysqli_free_result($result);
-}
 
-function AdminListLocations() {
-	global $conn;
-	$query = "SELECT `lid`, `city`, `state` FROM `locations` ORDER BY `state`, `city`";
-	$result = mysqli_query($conn,$query);
-	$locations = array(); // zero locations is still a list, PHP 8, calm down
-	while ($row = mysqli_fetch_assoc($result)) {
-		$locations[] = array(
-			"lid" => $row['lid'],
-			"city" => $row['city'],
-			"state" => StateCodeToName($row['state'])
-		);
+	// mysqli_report() is OFF up top, so a missing table is a FALSE here, not an exception
+	if ($season_rows === FALSE) {
+		echo "<div class='AdminError'>Couldn't read the seasons table: " . htmlspecialchars(mysqli_error($conn)) . "</div>";
+		return $every_season;
 	}
-	mysqli_free_result($result);
-	AdminShowLocations($locations);
+
+	while ($season_row = mysqli_fetch_assoc($season_rows)) {
+		$every_season[$season_row['sid']] = $season_row['season'];
+	}
+
+	mysqli_free_result($season_rows);
+	return $every_season;
 }
 
-function AdminSaveNewLocation() {
+/*
+ * CleanUpSeasonNameFromForm: "  summer  " becomes "Summer".
+ * htmlspecialchars because this name gets echoed straight into admin pages.
+ */
+function CleanUpSeasonNameFromForm($season_name_typed_in) {
+	$season_name = trim((string)$season_name_typed_in);
+	$season_name = ucwords($season_name);
+	$season_name = htmlspecialchars($season_name);
+	return $season_name;
+}
+
+function AdminListSeasons() {
+	AdminShowSeasons(GetEverySeason());
+}
+
+function AdminEditSingleSeason($season_id_from_form) {
 	global $conn;
-	if ( (isEmpty($_REQUEST['city'])) || (strlen($_REQUEST['state']) != 2) ) {
-		echo "<div class='AdminError'>Please input both a city and state.</div>";
+
+	$season_id = (int)preg_replace("/[^0-9]/", "", (string)$season_id_from_form);
+
+	$season_query = $conn->prepare(
+		"SELECT `sid`, `season`
+		 FROM `seasons`
+		 WHERE `sid` = ?"
+	);
+	$season_query->bind_param("i", $season_id);
+	$season_query->execute();
+	$season_details = $season_query->get_result()->fetch_assoc();
+	$season_query->close();
+
+	if ($season_details === NULL) {
+		// a stale link, or someone typing sids into the URL bar for fun
+		echo "<div class='AdminError'>There's no season number $season_id. It may have been deleted.</div>";
+		AdminListSeasons();
+		return;
+	}
+
+	AdminEditSeason($season_details);
+}
+
+function AdminSaveNewSeason() {
+	global $conn;
+
+	$season_name = CleanUpSeasonNameFromForm($_REQUEST['season'] ?? '');
+
+	if ($season_name === "") {
+		echo "<div class='AdminError'>Please type a name for the season.</div>";
+		return;
+	}
+
+	// the season column is UNIQUE, so a second "Summer" fails here instead of
+	// making two Summers that confuse the picker forever
+	$insert_query = $conn->prepare(
+		"INSERT INTO `seasons` (`season`)
+		 VALUES (?)"
+	);
+	$insert_query->bind_param("s", $season_name);
+
+	if ($insert_query->execute() === TRUE) {
+		echo "<div class='AdminSuccess'><B>$season_name</B> added.</div>";
 	} else {
-		$city = htmlspecialchars(ucwords(trim($_REQUEST['city'])));
-		$state = htmlspecialchars(strtoupper(trim($_REQUEST['state'])));
-		$query = sprintf("INSERT INTO `locations` (`city`,`state`) VALUES ('%s','%s')",
-			mysqli_real_escape_string($conn,$city),
-			mysqli_real_escape_string($conn,$state)
-		); // XXX: there may be two legitimate cities named the same, but in different states.  Not allowed currently.
-		$statename = StateCodeToName($state);
-		if (mysqli_query($conn,$query) === TRUE) {
-			echo "<div class='AdminSuccess'><B>$city, $statename</B> Successfully Added.</div>";
-		} else {
-			echo "<div class='AdminError'><B>$city, $statename</B> Failed to Save!<br>". mysqli_error($conn) ."</div>";
-		}
+		echo "<div class='AdminError'><B>$season_name</B> wasn't saved. Is it already on the list?<br>"
+			. htmlspecialchars($insert_query->error) . "</div>";
 	}
+
+	$insert_query->close();
 }
 
-function AdminDeleteLocation($lid) {
+function AdminSaveSingleSeason() {
+	// save an existing season that was just renamed
 	global $conn;
-	$lid = preg_replace("/[^0-9]/","",$lid); // input sanitization -- only numbers
-	// find all samples using this location in `samplelocations` and clean 'em up
-	$query = sprintf("DELETE FROM `samplelocations` WHERE `lid` = '%s'",
-		mysqli_real_escape_string($conn,$lid)
-	);
-	if (mysqli_query($conn,$query) === FALSE) {
-		echo "<div class='AdminError'>Whoa, couldn't delete '$lid' from samplelocations. ". mysqli_error($conn) ."</div>";
+
+	$season_id = (int)preg_replace("/[^0-9]/", "", (string)($_REQUEST['sid'] ?? ''));
+	$season_name = CleanUpSeasonNameFromForm($_REQUEST['season'] ?? '');
+
+	if ($season_name === "") {
+		echo "<div class='AdminError'>Please type a name for the season.</div>";
+		return;
 	}
-	$query = sprintf("DELETE FROM `locations` WHERE `lid` = '%s'",
-		mysqli_real_escape_string($conn,$lid)
+
+	$update_query = $conn->prepare(
+		"UPDATE `seasons`
+		 SET `season` = ?
+		 WHERE `sid` = ?"
 	);
-	if (mysqli_query($conn,$query) === TRUE) {
-		echo "<div class='AdminSuccess'>Location removed.</div>";
+	$update_query->bind_param("si", $season_name, $season_id);
+
+	if ($update_query->execute() === TRUE) {
+		echo "<div class='AdminSuccess'>Season renamed to <B>$season_name</B>.</div>";
 	} else {
-		echo "<div class='AdminError'>Hmm, couldn't delete '$lid' from locations.". mysqli_error($conn) ."</div>";
+		echo "<div class='AdminError'>Couldn't rename it to <B>$season_name</B>. Is that name already taken?<br>"
+			. htmlspecialchars($update_query->error) . "</div>";
+	}
+
+	$update_query->close();
+}
+
+function AdminDeleteSeason($season_id_from_form) {
+	global $conn;
+
+	$season_id = (int)preg_replace("/[^0-9]/", "", (string)$season_id_from_form);
+
+	// first unhook every sample from this season, then delete the season itself.
+	// The samples stay; they just lose this one season.
+	$unhook_query = $conn->prepare(
+		"DELETE FROM `sampleseasons`
+		 WHERE `sid` = ?"
+	);
+	$unhook_query->bind_param("i", $season_id);
+	$unhook_query->execute();
+	$unhook_query->close();
+
+	$delete_query = $conn->prepare(
+		"DELETE FROM `seasons`
+		 WHERE `sid` = ?"
+	);
+	$delete_query->bind_param("i", $season_id);
+	$delete_query->execute();
+	$how_many_seasons_deleted = $delete_query->affected_rows;
+	$delete_query->close();
+
+	if ($how_many_seasons_deleted > 0) {
+		echo "<div class='AdminSuccess'>Season removed. Winter is NOT coming.</div>";
+	} else {
+		echo "<div class='AdminError'>Hmm, there was no season number $season_id to delete.</div>";
 	}
 }
 
@@ -2779,29 +2883,6 @@ function AdminListTags() {
 	aasort($tags,"name");
 	$quantity = count($tags);
 	AdminShowTags($tags,$quantity);
-}
-
-function AdminSaveSingleLocation() {
-	// save an existing location that was just edited
-	global $conn;
-	if ( (isEmpty($_REQUEST['city'])) || (strlen($_REQUEST['state']) != 2) ) {
-		echo "<div class='AdminError'>Please input both a city and state.</div>";
-	} else {
-		$lid = preg_replace("/[^0-9]/","",$_REQUEST['lid']); // input sanitization -- only numbers
-		$city = htmlspecialchars(ucwords(trim($_REQUEST['city'])));
-		$state = htmlspecialchars(strtoupper(trim($_REQUEST['state'])));
-		$statename = StateCodeToName($state);
-		$query = sprintf("UPDATE `locations` SET `city` = '%s', `state` = '%s' WHERE `lid` = '%s'",
-			mysqli_real_escape_string($conn,$city),
-			mysqli_real_escape_string($conn,$state),
-			mysqli_real_escape_string($conn,$lid)
-		);
-		if (mysqli_query($conn,$query) === TRUE) {
-			echo "<div class='AdminSuccess'>Location <B>$city</B>, <B>$statename</B> [$lid] Successfully Updated.</div>";
-		} else {
-			echo "<div class='AdminError'>Location <B>$city</B>, <B>$statename</B> [$lid] Failed to Update!<br>". mysqli_error($conn) ."</div>";
-		}
-	}
 }
 
 function AdminSaveSingleTag() {
@@ -3071,7 +3152,7 @@ function AdminsampleDeleteGo($oid) {
 		}
 	}
 	// delete from database tables
-	$tables = array("sampletags","samplecategories","samplelocations","samplesubcategories","media","samples");
+	$tables = array("sampletags","samplecategories","sampleseasons","samplesubcategories","media","samples");
 	$error = 0;
 	foreach ($tables as $table) {
 		$query = "DELETE FROM `$table` WHERE `oid` = $oid";
@@ -3403,54 +3484,55 @@ function AdminSelectTags($oid = NULL) {
 	return($string);
 }
 
-function AdminSelectLocations($oid = NULL) {
-	// for adding or editing an sample // I'm totally duplicating code // please review AdminSelectCategories() above for notes
+/*
+ * AdminSelectSeasons: the <option>s for the season picker on the sample
+ * forms. A season is pre-picked if this sample already has it (editing),
+ * or if it was picked on a new-sample form that bounced back with an
+ * error (so you don't have to pick it all over again).
+ * (Was AdminSelectLocations, with its "insanity to make the dropdown list
+ * nice grouped by state". No states, no insanity.)
+ */
+function AdminSelectSeasons($oid = NULL) {
 	global $conn;
-	$locationslist = array();
-	$samplelocations = array();
-	$query = "SELECT * FROM `locations` ORDER BY `state`, `city`";
-	$result = mysqli_query($conn,$query);
-	while ($row = mysqli_fetch_assoc($result)) {
-		$locationslist[$row['lid']] = array($row['city'],$row['state']);
-	}
-	mysqli_free_result($result);
+
+	$seasons_this_sample_already_has = array();
 	if ($oid) {
-		$query = sprintf("SELECT `lid` FROM `samplelocations` WHERE `oid` = %s",
-			mysqli_real_escape_string($conn,$oid)
+		$sample_id = (int)$oid;
+		$picked_query = $conn->prepare(
+			"SELECT `sid`
+			 FROM `sampleseasons`
+			 WHERE `oid` = ?"
 		);
-		$result = mysqli_query($conn,$query);
-		while ($row = mysqli_fetch_assoc($result)) {
-			$samplelocations[$row['lid']] = TRUE;
+		$picked_query->bind_param("i", $sample_id);
+		$picked_query->execute();
+		$picked_rows = $picked_query->get_result();
+		while ($picked_row = $picked_rows->fetch_assoc()) {
+			$seasons_this_sample_already_has[$picked_row['sid']] = TRUE;
+		}
+		$picked_query->close();
+	}
+
+	// the new-sample form bounced back with an error: keep what was picked
+	$seasons_picked_on_bounced_form = array();
+	if (($_REQUEST['formpage'] ?? NULL) == 1) {
+		foreach (($_REQUEST['seasons'] ?? array()) as $picked_season_id) {
+			$seasons_picked_on_bounced_form[(int)$picked_season_id] = TRUE;
 		}
 	}
-	// insanity to make the dropdown list nice grouped by state
-	$oldstate = "";
-	$string = "";
-	$firstpost = 0;
-	foreach($locationslist as $lid => $citystate) {
-		if ($citystate[1] != $oldstate) {
-			($firstpost)? $string .= "</optgroup>" : $firstpost++;
-			$string .= "\n<optgroup label='". StateCodeToName($citystate[1]) ."'>";
-			$oldstate = $citystate[1];
+
+	$season_options_html = "";
+	foreach (GetEverySeason() as $season_id => $season_name) {
+		$selected_attribute = "";
+		if (isset($seasons_this_sample_already_has[$season_id])) {
+			$selected_attribute = " selected";
 		}
-		$s = 0;
-		if (!empty($samplelocations[$lid])) {
-			$s++;
+		if (isset($seasons_picked_on_bounced_form[$season_id])) {
+			$selected_attribute = " selected";
 		}
-		if ((($_REQUEST['formpage'] ?? NULL) == 1) && (count($_REQUEST['locations'] ?? array()) > 0)) {
-			if (strlen(array_search($lid,$_REQUEST['locations'])) > 0) {
-				$s++;
-			}
-		}
-		$string .= sprintf("<option value='%s'%s>%s, %s</option>",
-			$lid,
-			($s > 0)? ' selected' : '',
-			$citystate[0],
-			StateCodeToName($citystate[1])
-		);
+		$season_options_html .= "<option value='$season_id'$selected_attribute>$season_name</option>";
 	}
-	$string .= "</optgroup>";
-	return($string);
+
+	return $season_options_html;
 }
 
 function AdminSaveNewCategory() {
