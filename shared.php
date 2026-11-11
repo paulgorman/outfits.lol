@@ -1761,6 +1761,21 @@ function AdminsampleAddNew() {
 			if ($filecount >= 1) {
 				FillInBlankSampleFieldsFromClip($oid);
 			}
+			// One photo? Then it's THE photo: highlight it, so nobody has to
+			// click "highlight" on the only choice there is. Two or more,
+			// Presence picks. (Videos don't count: filetype must be a picture.)
+			if ($filecount == 1) {
+				global $conn;
+				$highlight_query = $conn->prepare(
+					"UPDATE `media`
+					 SET `is_highlighted` = 1
+					 WHERE `oid` = ?
+					 AND `filetype` IN ('jpg', 'png')"
+				);
+				$highlight_query->bind_param("i", $oid);
+				$highlight_query->execute();
+				$highlight_query->close();
+			}
 			// regardless of media, we did save SOMETHING, so sets see it.
 			AdminsampleEditSingle($oid);
 		}
@@ -1843,7 +1858,7 @@ function GetClipDescribingWordMenus() {
 		),
 		'pattern' => array(
 			'solid color', 'striped', 'plaid', 'denim', 'polka dot',
-			'graphic print', 'tie-dye', 'sequined', 'lace', 'shiny',
+			'graphic print', 'tie-dye', 'sequined', 'lace', 'shiny', 'quilted',
 		),
 		'condition' => array(
 			'brand new', 'worn-in', 'faded', 'ripped', 'dressy', 'casual',
@@ -1895,6 +1910,133 @@ function SortGuessesHighestScoreFirst($first_guess, $second_guess) {
 
 
 /*
+ * AddUpVotesForTheSameKindOfThing: CLIP looked at a black tulle-ish skirt
+ * and said "Leggings 27%, Tulle Skirts 21%, Skirts 17%". That's 38% skirt!
+ * Two skirt categories split the vote, and leggings sneaked in the middle.
+ * So: categories ending in the same noun pool their votes, iFetch-style karma. The kind of thing
+ * with the most karma wins the landslide, and inside it, the category CLIP
+ * liked best goes first. Comes back as the same kind of list, re-ordered:
+ *   Tulle Skirts 21%, Skirts 17%, Leggings 27%
+ * Each guess keeps its OWN score, so the bio still shows honest numbers.
+ */
+function AddUpVotesForTheSameKindOfThing($every_guess) {
+	include_once("singularize.php");
+
+	// karma per kind of thing, and which guesses belong to each kind
+	$karma_for_each_kind = array();
+	$guesses_of_each_kind = array();
+
+	foreach ($every_guess as $single_guess) {
+		// English puts the noun LAST: "Tulle Skirts" and "Skirts" are both
+		// skirts, but "Skirt Suits" is a suit and "Boot Socks" are socks.
+		$every_word_in_the_label = explode(' ', strtolower(trim($single_guess['label'])));
+		$kind_of_thing = singularize(end($every_word_in_the_label));
+
+		if (!isset($karma_for_each_kind[$kind_of_thing])) {
+			$karma_for_each_kind[$kind_of_thing] = 0;
+			$guesses_of_each_kind[$kind_of_thing] = array();
+		}
+
+		$karma_for_each_kind[$kind_of_thing] += $single_guess['score'];
+		$guesses_of_each_kind[$kind_of_thing][] = $single_guess; // still best-first, AskClipToPickFromOneMenu sorted them
+	}
+
+	// most karma first. arsort() keeps the kind names as the keys.
+	arsort($karma_for_each_kind);
+
+	$every_guess_regrouped = array();
+	foreach ($karma_for_each_kind as $kind_of_thing => $karma_for_this_kind) {
+		foreach ($guesses_of_each_kind[$kind_of_thing] as $single_guess) {
+			$every_guess_regrouped[] = $single_guess;
+		}
+	}
+
+	return $every_guess_regrouped;
+}
+
+
+
+/*
+ * MakePhotoCopiesClipCanRead: CLIP (libvips, underneath) wants plain
+ * three-channel RGB. A black-and-white JPEG has one channel and blows up with
+ * "extract_band: bad extract band"; CMYK JPEGs and see-through PNGs are
+ * iffy too. A normal phone JPEG goes through as-is. Anything else gets a
+ * temporary RGB JPEG copy (see-through parts painted white, like a product
+ * photo). Returns the list of paths to show CLIP, same order as given.
+ * Clean up after with ThrowAwayPhotoCopiesClipCouldRead().
+ */
+function MakePhotoCopiesClipCanRead($photo_paths) {
+	$photo_paths_for_clip = array();
+
+	foreach ($photo_paths as $photo_path) {
+		$photo_size_and_type = @getimagesize($photo_path);
+
+		// unreadable? hand it over anyway, and let CLIP be the one to complain
+		if ($photo_size_and_type === false) {
+			$photo_paths_for_clip[] = $photo_path;
+			continue;
+		}
+
+		$photo_is_a_jpeg = ($photo_size_and_type[2] === IMAGETYPE_JPEG);
+		$how_many_color_channels = 0;
+		if (isset($photo_size_and_type['channels'])) {
+			$how_many_color_channels = $photo_size_and_type['channels'];
+		}
+
+		if ($photo_is_a_jpeg && $how_many_color_channels == 3) {
+			$photo_paths_for_clip[] = $photo_path; // the normal case: nothing to do
+			continue;
+		}
+
+		$original_picture = @imagecreatefromstring(file_get_contents($photo_path));
+		if ($original_picture === false) {
+			$photo_paths_for_clip[] = $photo_path;
+			continue;
+		}
+
+		// a fresh full-color canvas, painted white, with the photo laid on top
+		$photo_width = imagesx($original_picture);
+		$photo_height = imagesy($original_picture);
+		$rgb_picture = imagecreatetruecolor($photo_width, $photo_height);
+		$white = imagecolorallocate($rgb_picture, 255, 255, 255);
+		imagefilledrectangle($rgb_picture, 0, 0, $photo_width, $photo_height, $white);
+		imagecopy($rgb_picture, $original_picture, 0, 0, 0, 0, $photo_width, $photo_height);
+
+		$temporary_copy_path = tempnam(sys_get_temp_dir(), 'clip-photo-') . '.jpg';
+		imagejpeg($rgb_picture, $temporary_copy_path, 92);
+		imagedestroy($rgb_picture);
+		imagedestroy($original_picture);
+
+		$photo_paths_for_clip[] = $temporary_copy_path;
+	}
+
+	return $photo_paths_for_clip;
+}
+
+
+
+/*
+ * ThrowAwayPhotoCopiesClipCouldRead: deletes the temporary copies, and ONLY
+ * the temporary copies. A path that was in the original list is a real
+ * photo in i/sample/ and is never, ever touched.
+ */
+function ThrowAwayPhotoCopiesClipCouldRead($original_photo_paths, $photo_paths_for_clip) {
+	foreach ($photo_paths_for_clip as $photo_path_for_clip) {
+		if (in_array($photo_path_for_clip, $original_photo_paths)) {
+			continue;
+		}
+		if (strpos(basename($photo_path_for_clip), 'clip-photo-') !== 0) {
+			continue; // not one of ours. paranoid? yes.
+		}
+		@unlink($photo_path_for_clip);
+		// tempnam() also left its empty placeholder file behind (no .jpg)
+		@unlink(substr($photo_path_for_clip, 0, -4));
+	}
+}
+
+
+
+/*
  * AskClipToPickFromOneMenu: the actual magic. Shows CLIP every photo with
  * one menu of words, averages each word's score across the photos, and
  * returns EVERY word, best first:
@@ -1903,8 +2045,10 @@ function SortGuessesHighestScoreFirst($first_guess, $second_guess) {
  * menus just 0, 1, 2 => word. The ids ride along so a winning word can be
  * saved as a real category or tag.
  * $clip_classifier is the loaded CLIP pipeline (see offline-classify.php).
+ * $menu_words_are_clothing_nouns: true for categories and sub-categories,
+ * whose plural names ("Skirts") get turned into "a skirt" for CLIP.
  */
-function AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $menu, $caption_template) {
+function AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $menu, $caption_template, $menu_words_are_clothing_nouns = false) {
 	if (count($menu) == 0 || count($photo_paths) == 0) {
 		return array();
 	}
@@ -1912,7 +2056,12 @@ function AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $menu, $captio
 	// "boots" becomes "a photo of boots". Remember which id each caption came from.
 	$id_for_each_caption = array();
 	foreach ($menu as $menu_id => $menu_word) {
-		$caption = sprintf($caption_template, strtolower($menu_word));
+		$caption_word = strtolower($menu_word);
+		if ($menu_words_are_clothing_nouns) {
+			include_once("singularize.php"); // "skirts" -> "a skirt". Word lists live there, not here.
+			$caption_word = SayPluralAsOneThing($caption_word);
+		}
+		$caption = sprintf($caption_template, $caption_word);
 		$id_for_each_caption[$caption] = $menu_id;
 	}
 	$captions = array_keys($id_for_each_caption);
@@ -2089,7 +2238,7 @@ function GetBlankSampleFactsForPhotos($photo_paths) {
  */
 function DescribeSampleWithClip($clip_classifier, $sample_facts) {
 	$tuning_knobs = GetClipTuningKnobs();
-	$photo_paths = $sample_facts['photo_paths'];
+	$photo_paths = MakePhotoCopiesClipCanRead($sample_facts['photo_paths']);
 	$guesses = array();
 	$what_to_write = array();
 
@@ -2106,7 +2255,7 @@ function DescribeSampleWithClip($clip_classifier, $sample_facts) {
 	} else {
 		$category_menu = $every_category;
 	}
-	$guesses['category'] = AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $category_menu, $tuning_knobs['caption_for_what_it_is']);
+	$guesses['category'] = AddUpVotesForTheSameKindOfThing(AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $category_menu, $tuning_knobs['caption_for_what_it_is'], true));
 
 	$winning_category = NULL;
 	if (count($guesses['category']) > 0) {
@@ -2119,14 +2268,23 @@ function DescribeSampleWithClip($clip_classifier, $sample_facts) {
 	}
 
 	// ---- Then the sub-categories inside the winning category. ----
+	// A sub-category is optional: a plain skirt can just sit in Skirts. So the
+	// category itself goes on the menu too ("a skirt" vs "a tutu"), and if
+	// the plain category wins, no sub-category gets written. Without this, two
+	// sub-categories would force EVERY skirt into one of them.
 	$winning_subcategory = NULL;
 	if ($winning_category !== NULL) {
 		$subcategory_menu = GetSubcategoriesForClip($winning_category['id']);
-		if (count($subcategory_menu) >= 2) {
-			$guesses['subcategory'] = AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $subcategory_menu, $tuning_knobs['caption_for_what_it_is']);
-			$winning_subcategory = $guesses['subcategory'][0];
-			if (count($sample_facts['picked_subcategory_ids']) == 0) {
-				$what_to_write['subcategory_ids'] = array($winning_subcategory['id']);
+		if (count($subcategory_menu) >= 1) {
+			$subcategory_menu['just_the_plain_category'] = $winning_category['label'];
+
+			$guesses['subcategory'] = AddUpVotesForTheSameKindOfThing(AskClipToPickFromOneMenu($clip_classifier, $photo_paths, $subcategory_menu, $tuning_knobs['caption_for_what_it_is'], true));
+
+			if ($guesses['subcategory'][0]['id'] !== 'just_the_plain_category') {
+				$winning_subcategory = $guesses['subcategory'][0];
+				if (count($sample_facts['picked_subcategory_ids']) == 0) {
+					$what_to_write['subcategory_ids'] = array($winning_subcategory['id']);
+				}
 			}
 		}
 	}
@@ -2166,6 +2324,15 @@ function DescribeSampleWithClip($clip_classifier, $sample_facts) {
 	if ($winning_subcategory !== NULL) {
 		$what_it_is = strtolower($winning_subcategory['label']);
 	}
+
+	// One thing per sample, so one thing in the name: "Black Skirt", not
+	// "Black Skirts". Things that come in pairs stay plural ("Purple Leggings").
+	include_once("singularize.php");
+	$every_word_of_what_it_is = explode(' ', $what_it_is);
+	if (!in_array(end($every_word_of_what_it_is), GetWordsThatComeInPairs())) {
+		$what_it_is = singularize($what_it_is);
+	}
+
 	$best_color = $guesses['color'][0]['label'];
 	$best_pattern = $guesses['pattern'][0]['label'];
 	$best_condition = $guesses['condition'][0]['label'];
@@ -2181,6 +2348,8 @@ function DescribeSampleWithClip($clip_classifier, $sample_facts) {
 	if (trim((string)$sample_facts['bio']) === "") {
 		$what_to_write['bio'] = WriteClipGuessesAsBio($guesses, $tuning_knobs['guesses_to_list_in_the_bio']);
 	}
+
+	ThrowAwayPhotoCopiesClipCouldRead($sample_facts['photo_paths'], $photo_paths);
 
 	return array(
 		'oid' => $sample_facts['oid'],
@@ -3144,6 +3313,34 @@ function GetAltUrl($alturl) {
 	}
 }
 
+/*
+ *  ShortenUploadedFileNameToFit
+ *  "Screenshot_2026-11-11_at_11-31-18_plus_size_plus_size_plus_size_womens_..."
+ *  is a fine thing for a store to call a photo, and too long for the database.
+ *  The name is only a label (the real file on disk is a uniqid()), so chop
+ *  the middle-to-end of the name and keep the extension, so it still
+ *  reads as "somethingsomething.png".
+ */
+function ShortenUploadedFileNameToFit($uploaded_file_name, $longest_allowed_length) {
+
+	if (strlen($uploaded_file_name) <= $longest_allowed_length) {
+		return $uploaded_file_name;
+	}
+
+	$file_extension = pathinfo($uploaded_file_name, PATHINFO_EXTENSION);
+	$name_without_extension = pathinfo($uploaded_file_name, PATHINFO_FILENAME);
+
+	// a weird "extension" that's half the name isn't really an extension
+	if ($file_extension === '' || strlen($file_extension) > 5) {
+		return substr($uploaded_file_name, 0, $longest_allowed_length);
+	}
+
+	$room_left_for_the_name = $longest_allowed_length - strlen($file_extension) - 1; // the 1 is the dot
+	$shortened_name = substr($name_without_extension, 0, $room_left_for_the_name);
+
+	return $shortened_name . "." . $file_extension;
+}
+
 function AdminsampleSaveMedia($oid) {
 	global $conn;
 	$savedfilecount = 0;
@@ -3162,6 +3359,7 @@ function AdminsampleSaveMedia($oid) {
 			$newfileid = ResizeImage($newfiles[$key][0],"sample");
 			// XXX: watermark function here?
 			$filename = preg_replace(array('/\s/', '/\.[\.]+/', '/[^\w_\.\-]/'), array('_', '.', ''), $_FILES['filesToUpload']['name'][$key]);
+			$filename = ShortenUploadedFileNameToFit($filename, 80); // `media`.`name` is VARCHAR(80), Temu is not
 			$mediainfo = MediaInfo($newfileid,"sample");
 			$query = sprintf("INSERT INTO `media` (`filename`, `filetype`,
 				`oid`, `name`, `thumbwidth`, `thumbheight`, `width`, `height`,
