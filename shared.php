@@ -692,7 +692,7 @@ function CategoriesList() {
 			//ListCategoryCarousel($highlightedList);
 			htmlBodyStart();
 			ListAllCategories($categoryList);
-			fwdConsCarousel(); // carousel constructor settings
+			//fwdConsCarousel(); // carousel constructor settings (no carousel on this page either)
 			ListCategoriesTextLinks($categoryList);
 			htmlFooter($meta);
 		} else {
