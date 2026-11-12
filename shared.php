@@ -1963,6 +1963,10 @@ function AddUpVotesForTheSameKindOfThing($every_guess) {
  * iffy too. A normal phone JPEG goes through as-is. Anything else gets a
  * temporary RGB JPEG copy (see-through parts painted white, like a product
  * photo). Returns the list of paths to show CLIP, same order as given.
+ * ALSO: CLIP looks at 224x224 squares, and the library's resize-and-crop
+ * chokes on any photo with a side under 224 pixels ("Attempting to broadcast
+ * an axis... 43 by 50", 2026-11-11, a skinny 207x450 photo). 224 works, 223
+ * crashes, tall or wide. So small photos get a blown-up copy too.
  * Clean up after with ThrowAwayPhotoCopiesClipCouldRead().
  */
 function MakePhotoCopiesClipCanRead($photo_paths) {
@@ -1983,7 +1987,11 @@ function MakePhotoCopiesClipCanRead($photo_paths) {
 			$how_many_color_channels = $photo_size_and_type['channels'];
 		}
 
-		if ($photo_is_a_jpeg && $how_many_color_channels == 3) {
+		$shortest_side_clip_can_handle = 224;
+		$photo_short_side = min($photo_size_and_type[0], $photo_size_and_type[1]);
+		$photo_is_too_small = ($photo_short_side < $shortest_side_clip_can_handle);
+
+		if ($photo_is_a_jpeg && $how_many_color_channels == 3 && !$photo_is_too_small) {
 			$photo_paths_for_clip[] = $photo_path; // the normal case: nothing to do
 			continue;
 		}
@@ -1994,13 +2002,22 @@ function MakePhotoCopiesClipCanRead($photo_paths) {
 			continue;
 		}
 
-		// a fresh full-color canvas, painted white, with the photo laid on top
+		// too small? stretch it (keeping its shape) until the short side is 224
 		$photo_width = imagesx($original_picture);
 		$photo_height = imagesy($original_picture);
-		$rgb_picture = imagecreatetruecolor($photo_width, $photo_height);
+		$copy_width = $photo_width;
+		$copy_height = $photo_height;
+		if ($photo_is_too_small) {
+			$how_much_bigger = $shortest_side_clip_can_handle / $photo_short_side;
+			$copy_width = (int)ceil($photo_width * $how_much_bigger);
+			$copy_height = (int)ceil($photo_height * $how_much_bigger);
+		}
+
+		// a fresh full-color canvas, painted white, with the photo laid on top
+		$rgb_picture = imagecreatetruecolor($copy_width, $copy_height);
 		$white = imagecolorallocate($rgb_picture, 255, 255, 255);
-		imagefilledrectangle($rgb_picture, 0, 0, $photo_width, $photo_height, $white);
-		imagecopy($rgb_picture, $original_picture, 0, 0, 0, 0, $photo_width, $photo_height);
+		imagefilledrectangle($rgb_picture, 0, 0, $copy_width, $copy_height, $white);
+		imagecopyresampled($rgb_picture, $original_picture, 0, 0, 0, 0, $copy_width, $copy_height, $photo_width, $photo_height);
 
 		$temporary_copy_path = tempnam(sys_get_temp_dir(), 'clip-photo-') . '.jpg';
 		imagejpeg($rgb_picture, $temporary_copy_path, 92);
@@ -2239,6 +2256,8 @@ function GetBlankSampleFactsForPhotos($photo_paths) {
 function DescribeSampleWithClip($clip_classifier, $sample_facts) {
 	$tuning_knobs = GetClipTuningKnobs();
 	$photo_paths = MakePhotoCopiesClipCanRead($sample_facts['photo_paths']);
+	// safety net: if CLIP blows up halfway, PHP still cleans up the copies on its way out
+	register_shutdown_function('ThrowAwayPhotoCopiesClipCouldRead', $sample_facts['photo_paths'], $photo_paths);
 	$guesses = array();
 	$what_to_write = array();
 
