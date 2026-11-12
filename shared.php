@@ -676,17 +676,20 @@ function CategoriesList() {
 			$meta['image'] = CurServerUrl() . "i/category/" . $highlightedList[0]['carousel_id'];
 			$meta['css'][] = "skin_modern_silver.css";
 			//$meta['js'][] = "FWDRoyal3DCarousel.js";
-			$meta['js'][] = "FWDRoyal3DCarousel_uncompressed.js";
+			//$meta['js'][] = "FWDRoyal3DCarousel_uncompressed.js";
 			$meta['breadcrumb'][0]['name'] = "Wardrobe Samples";
 			$meta['breadcrumb'][0]['url'] = curPageURL();
+			// Killing this for my outfits.lol page
 			// display all the categories
 			htmlHeader($meta);
 			htmlMasthead($meta);
-			htmlDropDownNavigationSingle(gatherNavData());
-			//htmlDropDownNavigationFull(gatherNavData());
-			htmlWavesStart();
+			//htmlDropDownNavigationSingle(gatherNavData());
+			htmlDropDownNavigationFull(gatherNavData());
+			//htmlWavesStart();
+			htmlWavesShortStart();
 			htmlBreadcrumb($meta);
-			ListCategoryCarousel($highlightedList);
+			// Killing this for my outfits.lol page
+			//ListCategoryCarousel($highlightedList);
 			htmlBodyStart();
 			ListAllCategories($categoryList);
 			fwdConsCarousel(); // carousel constructor settings
