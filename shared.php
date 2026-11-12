@@ -1885,6 +1885,11 @@ function GetClipTuningKnobs() {
 		// how many guesses per menu get listed in the bio
 		'guesses_to_list_in_the_bio' => 3,
 
+		// the pattern goes in the NAME too ("Black Quilted Skirt") when CLIP
+		// is at least this sure. 0.80 = 80%. Fashion-clip is either very sure
+		// (denim 94%, quilted 100%) or all over the place (shiny 44%, striped 32%).
+		'pattern_goes_in_the_name_when_this_sure' => 0.80,
+
 		// CLIP learned from photo captions off the internet, so it likes
 		// "a photo of purple clothing" way more than just "purple".
 		// The %s is where the menu word goes.
@@ -2359,7 +2364,16 @@ function DescribeSampleWithClip($clip_classifier, $sample_facts) {
 	$summary_words = ucfirst("$best_color $what_it_is, $best_pattern, $best_condition");
 
 	if (strpos($sample_facts['name'], GetMysteryThingNamePrefix()) === 0) {
-		$what_to_write['name'] = ucwords("$best_color $what_it_is");
+		// A pattern CLIP is really sure of earns a spot in the name:
+		// "Black Quilted Skirt", "Light Blue Denim Skirt". A so-so guess
+		// stays in the summary only. "Solid color" never goes in a name:
+		// nobody calls it "the black solid color skirt".
+		$pattern_words_for_the_name = "";
+		$best_pattern_score = $guesses['pattern'][0]['score'];
+		if ($best_pattern_score >= $tuning_knobs['pattern_goes_in_the_name_when_this_sure'] && $best_pattern !== 'solid color') {
+			$pattern_words_for_the_name = "$best_pattern ";
+		}
+		$what_to_write['name'] = ucwords("$best_color $pattern_words_for_the_name$what_it_is");
 	}
 	if (trim((string)$sample_facts['slug']) === "") {
 		$what_to_write['slug'] = $summary_words;

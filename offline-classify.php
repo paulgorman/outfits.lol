@@ -16,6 +16,11 @@
  *                                                   (cron-able: cleans up after any upload where CLIP fell over)
  *    php offline-classify.php photo.jpg [...]       just guess at photo files, change nothing
  *    add --json for machine-readable output (the upload page uses --sample N --json)
+ *    add --model NAME to try a different CLIP brain (see $clip_model_nicknames below)
+ *
+ *  Model bake-off, nothing saved:
+ *    php offline-classify.php --model base    --sample 7 --dry-run
+ *    php offline-classify.php --model fashion --sample 7 --dry-run
  *
  *  It runs as its own process, never inside a web request: CLIP wants
  *  ~550MB and web PHP gets 256MB. Model load is ~1 second, then under a
@@ -138,6 +143,75 @@ function WhatWouldGetFilledIn($clip_description) {
 
 
 
+/*
+ *  PutBackOurModelFixes
+ *  Some models download with config files TransformersPHP can't read (see
+ *  clip-model-fixes/README.md). The fixed copies live in clip-model-fixes/,
+ *  and this copies them into .transformers-cache/ before the model loads.
+ *  The cache is "just a cache" and could get wiped any day; the library
+ *  only downloads files that AREN'T there yet, so ours win, every time.
+ */
+function PutBackOurModelFixes($clip_model_name) {
+	$folder_with_our_fixes = __DIR__ . "/clip-model-fixes/" . $clip_model_name;
+	$folder_in_the_cache = __DIR__ . "/.transformers-cache/" . $clip_model_name;
+
+	if (!is_dir($folder_with_our_fixes)) {
+		return; // most models download just fine
+	}
+
+	if (!is_dir($folder_in_the_cache)) {
+		mkdir($folder_in_the_cache, 0775, true);
+	}
+
+	foreach (scandir($folder_with_our_fixes) as $fixed_file_name) {
+		$fixed_file_path = $folder_with_our_fixes . "/" . $fixed_file_name;
+		if (!is_file($fixed_file_path)) {
+			continue; // ".", "..", and any folders
+		}
+
+		$cached_file_path = $folder_in_the_cache . "/" . $fixed_file_name;
+		$fixed_file_contents = file_get_contents($fixed_file_path);
+
+		// only write when it's missing or different, so the cache file's
+		// date tells you when a fix last had to be put back
+		if (!is_file($cached_file_path) || file_get_contents($cached_file_path) !== $fixed_file_contents) {
+			file_put_contents($cached_file_path, $fixed_file_contents);
+		}
+	}
+}
+
+
+
+/*  Which CLIP brain to use. Short nicknames so the bake-off doesn't need
+ *  Hugging Face names typed out. Anything not in this list gets passed
+ *  straight through, so a full "someone/some-model" name works too.
+ *
+ *  fashion - THE DEFAULT since 2026-11-11. Base-sized, but retrained on a
+ *            fashion retailer's catalog, so it knows midi from maxi, and it
+ *            sees black. ~3-7s per upload, ~1.35GB of RAM (full-size only).
+ *  base    - the old default. Small, fast, a generalist ("skirt" == "giraffe").
+ *
+ *  (Xenova/clip-vit-large-patch14 lost the bake-off too: better than base,
+ *  worse than fashion, and 6-34 seconds per sample. Presence will never
+ *  wait 20 seconds for a skirt. Dropped 2026-11-11.)
+ */
+$clip_model_nicknames = array(
+	'base'    => 'Xenova/clip-vit-base-patch32',
+	'fashion' => 'patrickjohncyh/fashion-clip',
+);
+
+// Change this line when the bake-off has a winner.
+$clip_model_to_use = $clip_model_nicknames['fashion']; // 2026-11-11: fashion won the bake-off (it sees black!)
+
+// TransformersPHP loads the shrunk-down "quantized" copy of a model by default
+// (onnx/model_quantized.onnx). Some models only come full-size (onnx/model.onnx),
+// and asking them for the small one is a "Could not instantiate model" crash.
+$clip_models_that_only_come_full_size = array(
+	'patrickjohncyh/fashion-clip',
+);
+
+
+
 /* ==== main program ======================================================= */
 
 $command_line_arguments = array_slice($argv, 1);
@@ -159,6 +233,15 @@ while ($argument_position < count($command_line_arguments)) {
 		$dry_run = true;
 	} elseif ($this_argument === '--mysteries') {
 		$do_every_mystery = true;
+	} elseif ($this_argument === '--model') {
+		// "--model" eats the word after it, same trick as "--sample"
+		$argument_position++;
+		$requested_model = $command_line_arguments[$argument_position] ?? '';
+		if (isset($clip_model_nicknames[$requested_model])) {
+			$clip_model_to_use = $clip_model_nicknames[$requested_model];
+		} elseif ($requested_model !== '') {
+			$clip_model_to_use = $requested_model;
+		}
 	} elseif ($this_argument === '--sample') {
 		$argument_position++;
 		$sample_ids_to_classify[] = (int)($command_line_arguments[$argument_position] ?? 0);
@@ -170,7 +253,7 @@ while ($argument_position < count($command_line_arguments)) {
 }
 
 if (count($sample_ids_to_classify) == 0 && count($photo_files_to_classify) == 0 && !$do_every_mystery) {
-	fwrite(STDERR, "usage: {$argv[0]} [--json] [--dry-run] --sample N | --mysteries | photo.jpg [...]\n");
+	fwrite(STDERR, "usage: {$argv[0]} [--json] [--dry-run] [--model fashion|base] --sample N | --mysteries | photo.jpg [...]\n");
 	exit(1);
 }
 
@@ -190,11 +273,16 @@ if ($do_every_mystery) {
 
 
 // Load CLIP. This is the fopen() of the whole thing: slow once, then cheap.
-// default model: Xenova/clip-vit-base-patch32
+// A new model's first run downloads it from Hugging Face: botsnack time again.
 $time_model_load_started = microtime(true);
-$clip_classifier = pipeline('zero-shot-image-classification');
+PutBackOurModelFixes($clip_model_to_use);
+$use_the_quantized_copy = true;
+if (in_array($clip_model_to_use, $clip_models_that_only_come_full_size)) {
+	$use_the_quantized_copy = false;
+}
+$clip_classifier = pipeline('zero-shot-image-classification', $clip_model_to_use, $use_the_quantized_copy);
 if (!$output_as_json) {
-	printf("model loaded in %.1fs\n", microtime(true) - $time_model_load_started);
+	printf("model %s loaded in %.1fs\n", $clip_model_to_use, microtime(true) - $time_model_load_started);
 }
 
 $everything_for_json = array();
@@ -231,6 +319,7 @@ foreach ($sample_ids_to_classify as $sample_id) {
 			'summary' => $clip_description['summary'],
 			'filled_in' => $what_got_filled_in,
 			'dry_run' => $dry_run,
+			'model' => $clip_model_to_use,
 			'guesses' => $clip_description['guesses'],
 		);
 	} else {
@@ -267,6 +356,7 @@ if (count($photo_files_to_classify) > 0) {
 				'summary' => $clip_description['summary'],
 				'filled_in' => $what_would_get_filled_in,
 				'dry_run' => true,
+				'model' => $clip_model_to_use,
 				'guesses' => $clip_description['guesses'],
 			);
 		} else {
