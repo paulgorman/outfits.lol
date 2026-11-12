@@ -1094,7 +1094,10 @@ function HomePage() {
 	htmlDropDownNavigationSingle(gatherNavData());
 	//htmlDropDownNavigationFull(gatherNavData());
 	htmlWavesFullStart();
-	homePageCarousel(gatherHighlightedsamples());
+	// No homepage carousel on outfits.lol (2026-11-12). Fun fact: irev.net's
+	// never worked either: HomePage() never loaded FWDRoyal3DCarousel_uncompressed.js,
+	// so it died on "FWDUtils is not defined" since the first commit. Presence's call: "I'm awesome."
+	//homePageCarousel(gatherHighlightedsamples());
 	homePageHighlightedGallery(gatherHighlightedsamples());
 	htmlBodyStart();
 	htmlHomePageTop();
@@ -1103,7 +1106,7 @@ function HomePage() {
 	*/
 	htmlHomePageContent($content);
 	//htmlBreadcrumb($meta);
-	fwdConsCarousel(); // dump this stuff in at the bottom of html
+	//fwdConsCarousel(); // dump this stuff in at the bottom of html (no carousel, see above)
 	homePageHighlightedGalleryJS();
 	/* Don't want the drawer pullout 
 	htmlHomePageCategoriesJS();
