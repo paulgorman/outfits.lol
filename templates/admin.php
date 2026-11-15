@@ -74,7 +74,7 @@ function AdminHead($curfunction,$adminfunctions) {
 			<body>
 				<!-- page name gets its own line: "Website Administration - Overview" wrapped three times on a phone -->
 				<div class='adminTitle'>
-					<span class='adminTitleSite'>Outfits.lol Admin</span>
+					<span class='adminTitleSite'><a href="/">Outfits.lol</a> Admin</span>
 					<span class='adminTitlePage'><?= $tempadminfunctionsflipped[$curfunction]; ?></span>
 				</div>
 	<?
@@ -351,7 +351,7 @@ function ShowAdminSampleListRow($sample_details) {
 	?>
 		<div class="adminListRow">
 			<a class="adminListRowMain" href="<?= $sample_edit_address ?>">
-				<span class="adminListRowName"><?= $sample_details['name'] ?></span>
+				<span class="adminListRowName adminListRowRealName"><?= $sample_details['name'] ?></span>
 				<? if ($sample_display_name !== "" && $sample_display_name !== $sample_details['name']) { ?>
 					<span class="adminListRowDetail">a.k.a. <?= $sample_display_name ?></span>
 				<? } ?>
@@ -1220,7 +1220,7 @@ function AdminsampleFormSingle($sampleinfo) {
 			<input type="hidden" value="irevform" name="<?= ini_get("session.upload_progress.name"); ?>">
 			<section class="adminPanel">
 				<div class="adminPanelHeader">
-					<h2 class="adminPanelTitle"><a href="<?= CurServerUrl(); ?>sample/<?= $sampleinfo['url']; ?>" title="See the public page"><?= $sampleinfo['name'] ?></a></h2>
+					<h2 class="adminPanelTitle"><a href="<?= CurServerUrl(); ?>sample/<?= $sampleinfo['url']; ?>" title="See the public page" class="adminPanelTitleRealName"><?= $sampleinfo['name'] ?></a></h2>
 					<span class="adminPanelSubtitle">Last updated <?= nicetime($sampleinfo['last_updated']) ?></span>
 				</div>
 				<!--
