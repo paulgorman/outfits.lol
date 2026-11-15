@@ -325,6 +325,5 @@ function htmlContent($content) {
 				<?= $content; ?>
 			</div>
 		</div>
-		<br>
 	<?
 }

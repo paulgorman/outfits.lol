@@ -11,10 +11,14 @@
 }
 body{
 	background-color: #000;
-	color:#fff;
+	/* pale lavender, not pure #fff: max-contrast white on black glows and
+	   blurs on a phone at night (readability pass, 2026-11-15) */
+	color: #e8e4f0;
 	font-family: 'Droid Sans', sans-serif;
 	min-width: 320px;
-	line-height: 1.1;
+	/* 1.4 and NO units, so it scales with whatever font-size it lands on.
+	   1.1 was squished, 1.5 was floaty. */
+	line-height: 1.4;
 }
 header{
 	background-image:url("/templates/irev/header-bg.png");
@@ -196,6 +200,12 @@ nav.menu ul:hover li{
 	line-height: 20px;
 }
 
+/* the row of tag buttons at the top of the purple part of a sample page.
+   It had no style at all, so the buttons sat jammed against the top edge. */
+.sampleTags {
+	padding-top: 8px;
+}
+
 .sampleTitle {
 	text-align: center;
 }
@@ -219,7 +229,7 @@ nav.menu ul:hover li{
 
 .sampleBio p {
 	font-size: 14px;
-	line-height: 18px;
+	/* line-height comes from body now (was 18px) */
 	text-indent: 1em;
 }
 .sampleBio strong { font-weight: bold; }
@@ -232,7 +242,7 @@ nav.menu ul:hover li{
 .sampleBio p + p { margin-top: 0.5em; }
 .sampleBio blockquote { padding:1.5em 1em 1.825em 1em; font-family:georgia,serif;font-style: italic;  }
 .sampleBio blockquote:before { content:"\201C";font-size:2.5em;margin-left:-.625em; font-family:georgia,serif;color:#aaa;line-height:0; }/* From Tripoli  */
-.sampleBio blockquote > p {padding:0; margin:0; font-size: 1.1em; line-height: 0.1em;}
+.sampleBio blockquote > p {padding:0; margin:0; font-size: 1.1em; line-height: 1.5; } /* was 0.1em: multi-line quotes overlapped themselves */
 .sampleBio a:link,.sampleBio a:visited,.sampleBio a:active { color: orange; }
 .sampleBio a:hover { color: yellow; }
 
@@ -241,7 +251,7 @@ nav.menu ul:hover li{
 	text-align: center;
 	position: relative;
 	margin: 0px auto 0px auto;
-	//padding: 4px;
+	/* padding: 4px; */
 }
 
 .sampleVideoIndividual {
@@ -249,7 +259,7 @@ nav.menu ul:hover li{
 	position: relative;
 	text-align: center;
 	border: 4px solid rgba(255,255,255,0.1);
-	//background-color:rgba(255,255,255,0.1);
+	/* background-color:rgba(255,255,255,0.1); */
 }
 
 .sampleStyles {
@@ -259,7 +269,7 @@ nav.menu ul:hover li{
 }
 
 .sampleGrid {
-	//border: 1px solid #fff;
+	/* border: 1px solid #fff; */
 	max-width: 960px;
 	text-align: center;
 	position: relative;
@@ -278,7 +288,7 @@ nav.menu ul:hover li{
 	text-decoration: none;
 	text-shadow: 1px 1px #333;
 	text-align: center;
-	//border: 1px solid #fff;
+	/* border: 1px solid #fff; */
 }
 .homeCategories a:hover {
 	color: orange;
@@ -286,12 +296,13 @@ nav.menu ul:hover li{
 
 .homeBody {
 	padding: 4px;
-	text-align:justify;
+	/* was justify: on a phone that makes "Temu     crap     I     own" rivers */
+	text-align: left;
 	padding-bottom: 20px;
 }
 .homeBody a:link,.homeBody a:visited,.homeBody a:active { color: orange; }
 .homeBody a:hover {color: yellow; }
-.homeBody p + p { margin-top: 0.5em; }
+.homeBody p + p { margin-top: 0; } /* the padding-bottom on .homeBody p is the gap; this doubled it */
 .homeBody h1 {
 	padding: 24px; 
 	font-style: normal;
@@ -303,17 +314,36 @@ nav.menu ul:hover li{
 }
 .homeBody p {
 	font-size: 1.1em;
-	line-height: 1.7em; 
-	//line-height: 2vmin;
-	//font-size: 1.8vmin;
+	/* line-height comes from body now (was 1.7em, airy next to squished lists) */
+	/* line-height: 2vmin; */
+	/* font-size: 1.8vmin; */
 	padding-bottom: 0.5em; 
 }
 .homeBody ul {
   list-style: disc;
 	padding-left: 24px;
-	line-height: 18px;
+	/* line-height comes from body now (was 18px on ~17px text: crammed) */
 	padding: 12px;
 	
+}
+/* keep reading text near 60-75 characters a line on a desktop.
+   960px of words is ~120 characters and your eyes lose the next line. */
+.homeBody p,
+.homeBody ul,
+.homeBody ol,
+.homeBody li,	/* page text sometimes has <li>s with no <ul> around them */
+.homeBody h1,
+.homeBody h2,
+.homeBody h3 {
+	max-width: 40em;
+	margin-left: auto;
+	margin-right: auto;
+}
+/* orange bullet dots (the text stays its normal color). Scoped to page and
+   sample text, so the nav's ul.sub1 menus never get dots. */
+.homeBody li::marker,
+.sampleBio li::marker {
+	color: orange;
 }
 .homeBody h2 { line-height: 24px; }
 .homeBody h3 {
@@ -329,8 +359,8 @@ nav.menu ul:hover li{
 .homeNews p {
 	font-size: 1em;
 	line-height: 1.2em;
-	//font-size: 1.6vmin;
-	//line-height: 2vmin;
+	/* font-size: 1.6vmin; */
+	/* line-height: 2vmin; */
 }
 
 .homeNews p + p { margin-top: 0.5em; }
@@ -344,7 +374,7 @@ h1{
 	font-style:italic;
 	color:#dcdcdc;
 	margin-top:-15px;
-	//margin-bottom: 22px;
+	/* margin-bottom: 22px; */
 	padding:12px;
 	text-shadow: 1px 2px #333;
 }
