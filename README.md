@@ -5,7 +5,7 @@ Presence's Outfits.lol -  What to Wear Wardrobe Closet of Outfits
 
 A personal wardrobe CRUD app: snap photos of your clothes, and CLIP (an
 AI model that runs right on the local server, no API keys, no cloud) guesses
-the name, color, pattern, category, and tags for you. Forked from the
+the name, color, pattern, category, and tags for the user. Forked from my 
 [irev.net](https://github.com/paulgorman/irevnet) portfolio code.
 
 This is Presence's own thing, not a real product. Backing out my
