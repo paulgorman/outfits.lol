@@ -2955,7 +2955,7 @@ function AdminSampleSaveSingle() {
 						mysqli_real_escape_string($conn, $samplesave['oid'])
 					);
 					if (mysqli_query($conn,$query) === FALSE) {
-						$errors[] = "Error saving category $cid for $oid!" .mysqli_error($conn);
+						$errors[] = "Error saving $column $id into $table for $oid! " .mysqli_error($conn);
 					}
 				}
 			}// else no category/tag/season changes
